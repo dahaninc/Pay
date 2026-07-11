@@ -1,26 +1,225 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ============ Sorted design tokens (from winner design) ============ */
+:root,
+html[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f3eadb;
+  --surface: #fffdf8;
+  --surface2: #f7efe1;
+  --ink: #211b13;
+  --muted: #7c7061;
+  --hair: rgba(33, 27, 19, 0.1);
+  --accent: #e7a33c;
+  --accent-ink: #3c2a0c;
+  --accent-soft: #f7ead0;
+  --danger: #ce4b2e;
+  --danger-ink: #b23a1e;
+  --danger-soft: #f8e4dc;
+  --win: #2e9e6b;
+  --win-ink: #1e7a4d;
+  --win-soft: #ddefe4;
+  --win-tint: rgba(46, 158, 107, 0.07);
+  --amber-ink: #97671a;
+  --amber-soft: #f6e9cf;
+  --shadow: rgba(33, 27, 19, 0.13);
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0b0c0e;
+  --surface: #16171b;
+  --surface2: #1f2127;
+  --ink: #f4f5f2;
+  --muted: #9a9da6;
+  --hair: rgba(255, 255, 255, 0.09);
+  --accent: #c9f23c;
+  --accent-ink: #0f1013;
+  --accent-soft: rgba(201, 242, 60, 0.15);
+  --danger: #ff6a4d;
+  --danger-ink: #ff8a73;
+  --danger-soft: rgba(255, 106, 77, 0.17);
+  --win: #58e0a0;
+  --win-ink: #58e0a0;
+  --win-soft: rgba(88, 224, 160, 0.15);
+  --win-tint: rgba(88, 224, 160, 0.06);
+  --amber-ink: #e7c06a;
+  --amber-soft: rgba(231, 192, 106, 0.15);
+  --shadow: rgba(0, 0, 0, 0.55);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --font-sans: var(--font-hanken), system-ui, sans-serif;
+  --font-disp: var(--font-bricolage), var(--font-hanken), sans-serif;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* new token names */
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface2: var(--surface2);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-hair: var(--hair);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-danger: var(--danger);
+  --color-danger-ink: var(--danger-ink);
+  --color-danger-soft: var(--danger-soft);
+  --color-win: var(--win);
+  --color-win-ink: var(--win-ink);
+  --color-win-soft: var(--win-soft);
+  --color-win-tint: var(--win-tint);
+  --color-amber-ink: var(--amber-ink);
+  --color-amber-soft: var(--amber-soft);
+
+  /* compat aliases so pre-redesign class names stay theme-aware */
+  --color-white: var(--surface);
+  --color-ink-900: var(--ink);
+  --color-ink-600: var(--muted);
+  --color-ink-400: var(--muted);
+  --color-brand-50: var(--accent-soft);
+  --color-brand-100: var(--accent-soft);
+  --color-brand-500: var(--accent);
+  --color-brand-600: var(--amber-ink);
+  --color-brand-700: var(--accent-ink);
+  --color-gray-50: var(--surface2);
+  --color-gray-100: var(--surface2);
+  --color-gray-200: var(--hair);
+  --color-gray-300: var(--hair);
+  --color-red-50: var(--danger-soft);
+  --color-red-200: var(--hair);
+  --color-red-500: var(--danger);
+  --color-red-600: var(--danger);
+  --color-red-700: var(--danger-ink);
+  --color-red-900: var(--danger-ink);
+  --color-amber-50: var(--amber-soft);
+  --color-amber-200: var(--hair);
+  --color-amber-400: var(--amber-ink);
+  --color-amber-700: var(--amber-ink);
+  --color-amber-800: var(--amber-ink);
+  --color-amber-900: var(--amber-ink);
+  --color-blue-50: var(--amber-soft);
+  --color-blue-700: var(--amber-ink);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+input,
+select,
+textarea {
+  font-size: 16px; /* prevent iOS zoom */
+}
+
+/* ============ motion (from winner design) ============ */
+@keyframes ppPulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.7);
+  }
+}
+@keyframes ppFall {
+  0% {
+    transform: translateY(-30px) rotate(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(105vh) rotate(600deg);
+    opacity: 0.85;
+  }
+}
+@keyframes ppPop {
+  0% {
+    transform: scale(0.82);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.03);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@keyframes ppToast {
+  0% {
+    transform: translate(-50%, 16px);
+    opacity: 0;
+  }
+  100% {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
+@keyframes ppFade {
+  0% {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.anim-fade {
+  animation: ppFade 0.28s ease;
+}
+
+/* ============ components ============ */
+@layer components {
+  .btn,
+  .btn-primary,
+  .btn-secondary,
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 rounded-[13px] font-bold transition-all min-h-12 px-5 text-[15px] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply bg-accent text-accent-ink hover:brightness-105 active:brightness-95;
+  }
+  .btn-secondary {
+    @apply bg-surface text-ink border border-hair hover:bg-surface2;
+  }
+  .btn-danger {
+    @apply bg-surface text-danger-ink border border-hair hover:bg-danger-soft;
+  }
+  .card {
+    @apply bg-surface rounded-[18px] border border-hair;
+  }
+  .field {
+    @apply w-full rounded-xl border border-hair bg-surface2 px-4 py-3 text-ink outline-none placeholder:text-muted/70 focus:border-accent;
+  }
+  .label {
+    @apply block text-[13px] font-semibold text-muted mb-1.5;
+  }
+  .pill-tab,
+  .pill-tab-on,
+  .pill-tab-off {
+    @apply shrink-0 rounded-full px-4 py-2 text-[13px] font-semibold cursor-pointer transition-colors;
+  }
+  .pill-tab-on {
+    @apply bg-accent text-accent-ink;
+  }
+  .pill-tab-off {
+    @apply bg-surface border border-hair text-muted hover:bg-surface2;
+  }
+  .section-label {
+    @apply text-xs font-bold tracking-[0.06em] uppercase text-muted;
+  }
+  .h-disp {
+    @apply font-disp font-extrabold tracking-[-0.02em] text-ink;
+  }
 }
