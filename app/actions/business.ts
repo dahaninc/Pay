@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createServerSupabase, requireBusiness } from "@/lib/supabase/server";
-import { CURRENCY_FOR_COUNTRY, TIMEZONE_FOR_COUNTRY } from "@/lib/money";
+import { CURRENCY_FOR_COUNTRY, TIMEZONE_FOR_COUNTRY, isSupportedCurrency } from "@/lib/money";
 import { defaultSteps } from "@/lib/templates";
 import type { Tone } from "@/lib/types";
 
@@ -18,6 +18,7 @@ export async function createBusiness(formData: FormData) {
   const country = String(formData.get("country") || "US");
   const phone = String(formData.get("phone") || "").trim() || null;
   const tone = (String(formData.get("tone") || "professional") as Tone);
+  const chosenCurrency = String(formData.get("currency") || "");
   if (!name) redirect("/onboarding");
 
   const { data: business, error } = await supabase
@@ -26,7 +27,9 @@ export async function createBusiness(formData: FormData) {
       owner_id: user.id,
       name,
       country,
-      currency: CURRENCY_FOR_COUNTRY[country] ?? "USD",
+      currency: isSupportedCurrency(chosenCurrency)
+        ? chosenCurrency
+        : (CURRENCY_FOR_COUNTRY[country] ?? "USD"),
       timezone: TIMEZONE_FOR_COUNTRY[country] ?? "America/New_York",
       tone,
       phone,
@@ -63,6 +66,9 @@ export async function updateBusiness(formData: FormData) {
     if (v !== null) updates[key] = String(v).trim() || null;
   }
   if (!updates.name) delete updates.name;
+
+  const currency = String(formData.get("currency") || "");
+  if (isSupportedCurrency(currency)) updates.currency = currency;
 
   const quietStart = formData.get("quiet_start");
   const quietEnd = formData.get("quiet_end");

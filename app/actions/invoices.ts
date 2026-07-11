@@ -21,7 +21,7 @@ import type { Customer, Invoice, SequenceStep } from "@/lib/types";
 async function findOrCreateCustomer(
   supabase: Awaited<ReturnType<typeof requireBusiness>>["supabase"],
   businessId: string,
-  data: { name: string; email?: string | null; phone?: string | null }
+  data: { name: string; email?: string | null; phone?: string | null; extraEmails?: string[] }
 ): Promise<Customer> {
   // match on email or phone first, then exact name
   let existing = null;
@@ -54,9 +54,10 @@ async function findOrCreateCustomer(
   }
   if (existing) {
     // backfill contact info if we learned more
-    const updates: Record<string, string> = {};
+    const updates: Record<string, string | string[]> = {};
     if (data.email && !existing.email) updates.email = data.email;
     if (data.phone && !existing.phone) updates.phone = data.phone;
+    if (data.extraEmails?.length) updates.extra_emails = data.extraEmails;
     if (Object.keys(updates).length) {
       await supabase.from("customers").update(updates).eq("id", existing.id);
       Object.assign(existing, updates);
@@ -71,6 +72,7 @@ async function findOrCreateCustomer(
       name: data.name,
       email: data.email || null,
       phone: data.phone || null,
+      extra_emails: data.extraEmails ?? [],
     })
     .select()
     .single();
@@ -138,6 +140,14 @@ export async function createInvoice(formData: FormData): Promise<CreateInvoiceRe
 
   const email = String(formData.get("customer_email") || "").trim() || null;
   const phone = String(formData.get("customer_phone") || "").trim() || null;
+  const extraEmails = [
+    ...new Set(
+      formData
+        .getAll("extra_email")
+        .map((e) => String(e).trim())
+        .filter((e) => e.includes("@") && e !== email)
+    ),
+  ].slice(0, 4);
   const number =
     String(formData.get("number") || "").trim() ||
     `INV-${Date.now().toString(36).toUpperCase().slice(-6)}`;
@@ -151,6 +161,7 @@ export async function createInvoice(formData: FormData): Promise<CreateInvoiceRe
       name: customerName,
       email,
       phone,
+      extraEmails,
     });
 
     const { data: invoice, error } = await supabase
@@ -343,7 +354,7 @@ export async function remindNow(invoiceId: string) {
     channel === "sms"
       ? await sendSms({ to: customer.phone!, body })
       : await sendEmail({
-          to: customer.email!,
+          to: [customer.email, ...(customer.extra_emails ?? [])].filter(Boolean) as string[],
           subject: subject!,
           html: linkifyPayLink(emailHtml(body, ctx.business_name), ctx.pay_link),
           replyTo: business.reply_to_email,
@@ -356,7 +367,7 @@ export async function remindNow(invoiceId: string) {
     customer_id: customer.id,
     channel,
     direction: "outbound",
-    to_address: channel === "sms" ? customer.phone : customer.email,
+    to_address: channel === "sms" ? customer.phone : [customer.email, ...(customer.extra_emails ?? [])].filter(Boolean).join(", "),
     subject: subject ?? null,
     body,
     status: result.status,

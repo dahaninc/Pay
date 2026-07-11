@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createInvoice } from "@/app/actions/invoices";
 import type { ExtractedInvoice } from "@/lib/extraction";
+import { EmailListInput } from "@/components/EmailListInput";
 
 export function NewInvoiceForm({
   currencySymbol,
@@ -90,33 +91,28 @@ export function NewInvoiceForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="label" htmlFor="customer_phone">
-            Mobile <span className="text-ink-400 font-normal">(for SMS)</span>
-          </label>
-          <input
-            id="customer_phone"
-            name="customer_phone"
-            type="tel"
-            className={`field ${lowConfidence("phone") ? "border-amber-400 bg-amber-50" : ""}`}
-            placeholder="+1 555 000 1234"
-            defaultValue={prefill?.phone ?? ""}
-          />
-        </div>
-        <div>
-          <label className="label" htmlFor="customer_email">
-            Email
-          </label>
-          <input
-            id="customer_email"
-            name="customer_email"
-            type="email"
-            className={`field ${lowConfidence("email") ? "border-amber-400 bg-amber-50" : ""}`}
-            placeholder="sarah@email.com"
-            defaultValue={prefill?.email ?? ""}
-          />
-        </div>
+      <div>
+        <label className="label" htmlFor="customer_phone">
+          Mobile <span className="text-ink-400 font-normal">(for SMS)</span>
+        </label>
+        <input
+          id="customer_phone"
+          name="customer_phone"
+          type="tel"
+          className={`field ${lowConfidence("phone") ? "border-amber-400 bg-amber-50" : ""}`}
+          placeholder="+1 555 000 1234"
+          defaultValue={prefill?.phone ?? ""}
+        />
+      </div>
+
+      <div>
+        <label className="label">
+          Email <span className="text-ink-400 font-normal">(＋ to add up to 5)</span>
+        </label>
+        <EmailListInput
+          defaultPrimary={prefill?.email ?? ""}
+          highlight={!!lowConfidence("email")}
+        />
       </div>
 
       <details className="text-sm">

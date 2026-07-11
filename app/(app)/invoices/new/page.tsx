@@ -5,8 +5,7 @@ import { ScanUpload } from "@/components/ScanUpload";
 import { CsvImport } from "@/components/CsvImport";
 import { CopyButton } from "@/components/CopyButton";
 import { BRAND, BRAND_TLD } from "@/lib/brand";
-
-const SYMBOLS: Record<string, string> = { USD: "$", GBP: "£", CAD: "$", AUD: "$" };
+import { currencySymbol } from "@/lib/money";
 
 const TABS = [
   { key: "type", label: "Type it" },
@@ -22,7 +21,7 @@ export default async function NewInvoicePage({
 }) {
   const { business } = await requireBusiness();
   const tab = (await searchParams).tab ?? "type";
-  const symbol = SYMBOLS[business.currency] ?? "$";
+  const symbol = currencySymbol(business.currency);
   const forwardAddr = `bills+${business.inbound_alias}@${BRAND_TLD}`;
 
   return (

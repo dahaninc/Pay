@@ -12,7 +12,7 @@ export interface SendResult {
  */
 
 export async function sendEmail(opts: {
-  to: string;
+  to: string | string[];
   subject: string;
   html: string;
   replyTo?: string | null;

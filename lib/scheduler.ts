@@ -171,6 +171,7 @@ async function processOne(
   const hasDestination =
     channel === "sms" ? !!cust.phone : !!cust.email && !cust.email_opted_out;
 
+  const emailRecipients = [cust.email, ...(cust.extra_emails ?? [])].filter(Boolean) as string[];
   const idempotencyKey = `${iseq.id}:${iseq.current_step}`;
   const ctx = mergeContext(biz, cust, inv);
   let body = renderTemplate(step.body, ctx);
@@ -198,7 +199,7 @@ async function processOne(
     customer_id: cust.id,
     channel,
     direction: "outbound",
-    to_address: channel === "sms" ? cust.phone : cust.email,
+    to_address: channel === "sms" ? cust.phone : emailRecipients.join(", "),
     subject: subject ?? null,
     body,
     status: "queued",
@@ -217,7 +218,7 @@ async function processOne(
     channel === "sms"
       ? await sendSms({ to: cust.phone!, body })
       : await sendEmail({
-          to: cust.email!,
+          to: emailRecipients,
           subject: subject || `Invoice ${inv.number} from ${ctx.business_name}`,
           html: linkifyPayLink(emailHtml(body, ctx.business_name), ctx.pay_link),
           replyTo: biz.reply_to_email,

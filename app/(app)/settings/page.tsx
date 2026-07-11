@@ -7,6 +7,7 @@ import { PlanPicker, ConnectStripeButton } from "@/components/BillingButtons";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ChevronRightIcon, ClockIcon } from "@/components/icons";
 import { trialDaysLeft } from "@/lib/plans";
+import { CURRENCIES } from "@/lib/money";
 import { BRAND, BRAND_TLD } from "@/lib/brand";
 
 export default async function SettingsPage({
@@ -71,10 +72,26 @@ export default async function SettingsPage({
               />
             </div>
           </div>
-          <div>
-            <label className="label">Business phone</label>
-            <input name="phone" type="tel" defaultValue={business.phone ?? ""} className="field" />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">Business phone</label>
+              <input name="phone" type="tel" defaultValue={business.phone ?? ""} className="field" />
+            </div>
+            <div>
+              <label className="label">Currency</label>
+              <select name="currency" defaultValue={business.currency} className="field">
+                {CURRENCIES.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.code} — {c.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
+          <p className="text-[11.5px] font-medium text-muted -mt-1">
+            New invoices use this currency. Existing invoices keep the currency they were created
+            with.
+          </p>
           <button type="submit" className="btn-primary w-full">
             Save profile
           </button>

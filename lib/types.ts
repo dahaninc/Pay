@@ -31,6 +31,7 @@ export interface Customer {
   business_id: string;
   name: string;
   email: string | null;
+  extra_emails: string[];
   phone: string | null;
   notes: string | null;
   sms_consent: boolean;
