@@ -20,7 +20,7 @@ export default async function OnboardingPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-5 bg-surface py-10">
       <div className="text-2xl font-bold tracking-tight mb-8">
-        Paid<span className="text-brand-600">Up</span>
+        Sorted
       </div>
       <div className="card w-full max-w-md p-7">
         <h1 className="text-xl font-bold">Set up your business</h1>

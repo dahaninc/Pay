@@ -91,7 +91,10 @@ export default async function InvoicesPage({
   }
 
   const totalCents = rows.reduce((s, r) => s + r.amount_cents, 0);
-  const firstName = (business.from_name || business.name).split(" ")[0];
+  const personalName =
+    business.from_name && business.from_name !== business.name
+      ? business.from_name.split(" ")[0]
+      : null;
 
   return (
     <div>
@@ -106,7 +109,8 @@ export default async function InvoicesPage({
               {business.name}
             </span>
             <span className="block text-xs font-semibold text-muted mt-0.5">
-              {greeting()}, {firstName}
+              {greeting()}
+              {personalName ? `, ${personalName}` : ""}
             </span>
           </span>
         </div>

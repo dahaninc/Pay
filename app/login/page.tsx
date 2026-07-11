@@ -44,7 +44,7 @@ function LoginInner() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-5 bg-surface">
       <Link href="/" className="text-2xl font-bold tracking-tight mb-8">
-        Paid<span className="text-brand-600">Up</span>
+        Sorted
       </Link>
       <div className="card w-full max-w-sm p-7">
         {phase === "email" ? (

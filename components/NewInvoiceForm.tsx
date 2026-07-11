@@ -144,7 +144,7 @@ export function NewInvoiceForm({
       </details>
 
       <label className="flex items-center gap-3 card p-4 cursor-pointer">
-        <input type="checkbox" name="arm" defaultChecked className="w-5 h-5 accent-[#1f7a4d]" />
+        <input type="checkbox" name="arm" defaultChecked className="w-5 h-5 accent-[var(--accent)]" />
         <span>
           <span className="font-semibold block">Arm reminders</span>
           <span className="text-sm text-ink-600">

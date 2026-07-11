@@ -132,7 +132,7 @@ export function BottomNav() {
             >
               <Icon size={23} />
               <span className="text-[10.5px] font-bold">
-                {label === "Your money" ? "Money" : label === "Add invoice" ? "Add" : label}
+                {label === "Your money" ? "Money" : label}
               </span>
             </Link>
           );

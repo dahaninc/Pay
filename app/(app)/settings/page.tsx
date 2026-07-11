@@ -4,7 +4,10 @@ import { updateBusiness } from "@/app/actions/business";
 import { refreshStripeStatus } from "@/app/actions/billing";
 import { signOut } from "@/app/actions/auth";
 import { PlanPicker, ConnectStripeButton } from "@/components/BillingButtons";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { ChevronRightIcon, ClockIcon } from "@/components/icons";
 import { trialDaysLeft } from "@/lib/plans";
+import { BRAND, BRAND_TLD } from "@/lib/brand";
 
 export default async function SettingsPage({
   searchParams,
@@ -16,33 +19,48 @@ export default async function SettingsPage({
   const { business } = await requireBusiness();
 
   return (
-    <div className="max-w-lg mx-auto space-y-8">
-      <h1 className="text-2xl font-bold">Settings</h1>
+    <div className="max-w-[560px] mx-auto pt-3 space-y-4">
+      <h1 className="sm:hidden font-disp font-extrabold text-[26px] tracking-[-0.02em] text-ink px-0.5 mb-1">
+        Settings
+      </h1>
 
       {sp.billing === "success" && (
-        <div className="card p-4 bg-brand-50 border-brand-100 text-brand-700 text-sm">
-          🎉 Subscription active — thanks for going PaidUp.
+        <div className="card p-4 bg-win-soft text-win-ink text-sm font-bold">
+          🎉 Subscription active — thanks for going {BRAND}.
         </div>
       )}
 
+      {/* appearance */}
+      <div className="card px-4 py-1">
+        <div className="flex items-center justify-between py-3.5">
+          <div>
+            <p className="font-bold text-[15px] text-ink">Dark mode</p>
+            <p className="text-[12.5px] font-medium text-muted mt-0.5">
+              Easier on the eyes at night.
+            </p>
+          </div>
+          <ThemeToggle />
+        </div>
+      </div>
+
       {/* business profile */}
-      <section className="card p-5 sm:p-6">
-        <h2 className="font-bold mb-4">Business profile</h2>
-        <form action={updateBusiness} className="space-y-4">
+      <div>
+        <p className="section-label px-1 mb-2.5">Business profile</p>
+        <form action={updateBusiness} className="card p-4 flex flex-col gap-3.5">
           <div>
             <label className="label">Business name</label>
             <input name="name" defaultValue={business.name} required className="field" />
           </div>
-          <div>
-            <label className="label">Sender name on reminders</label>
-            <input
-              name="from_name"
-              defaultValue={business.from_name ?? ""}
-              className="field"
-              placeholder={business.name}
-            />
-          </div>
           <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">From name</label>
+              <input
+                name="from_name"
+                defaultValue={business.from_name ?? ""}
+                className="field"
+                placeholder={business.name}
+              />
+            </div>
             <div>
               <label className="label">Reply-to email</label>
               <input
@@ -52,95 +70,107 @@ export default async function SettingsPage({
                 className="field"
               />
             </div>
-            <div>
-              <label className="label">Business phone</label>
-              <input name="phone" type="tel" defaultValue={business.phone ?? ""} className="field" />
-            </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label">Quiet hours start</label>
-              <select name="quiet_start" defaultValue={business.quiet_start} className="field">
-                {[8, 9, 10, 11].map((h) => (
-                  <option key={h} value={h}>
-                    {h}:00
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="label">Quiet hours end</label>
-              <select name="quiet_end" defaultValue={business.quiet_end} className="field">
-                {[17, 18, 19, 20].map((h) => (
-                  <option key={h} value={h}>
-                    {h}:00
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div>
+            <label className="label">Business phone</label>
+            <input name="phone" type="tel" defaultValue={business.phone ?? ""} className="field" />
           </div>
-          <p className="text-xs text-ink-400">
-            Reminders only send inside these hours, never on Sundays. That&rsquo;s a hard rule —
-            it keeps you compliant and your customers happy.
-          </p>
           <button type="submit" className="btn-primary w-full">
             Save profile
           </button>
         </form>
-      </section>
+      </div>
 
-      {/* tone + templates */}
-      <section className="card p-5 sm:p-6">
-        <h2 className="font-bold mb-1">Reminder messages</h2>
-        <p className="text-sm text-ink-600 mb-4">
-          Tone: <span className="font-semibold capitalize">{business.tone}</span> · 5-step
-          sequence
-        </p>
-        <Link href="/settings/templates" className="btn-secondary w-full">
-          Edit tone &amp; message templates
+      {/* reminders */}
+      <div>
+        <p className="section-label px-1 mb-2.5">Reminders</p>
+        <Link
+          href="/settings/templates"
+          className="card w-full p-4 flex items-center justify-between hover:bg-surface2 transition-colors mb-3"
+          style={{ borderRadius: 16 }}
+        >
+          <span>
+            <span className="block font-bold text-[15px] text-ink">
+              Message templates &amp; tone
+            </span>
+            <span className="block text-[12.5px] font-medium text-muted mt-0.5 capitalize">
+              Currently: {business.tone} · 5-step sequence
+            </span>
+          </span>
+          <span className="text-muted">
+            <ChevronRightIcon />
+          </span>
         </Link>
-      </section>
+        <div className="card p-4" style={{ borderRadius: 16 }}>
+          <div className="flex items-center gap-2.5">
+            <span className="text-win-ink">
+              <ClockIcon />
+            </span>
+            <p className="font-bold text-sm text-ink">
+              Quiet hours: {business.quiet_start}:00am – {business.quiet_end - 12}:00pm · never
+              Sundays
+            </p>
+          </div>
+          <p className="text-[12.5px] font-medium text-muted mt-1.5 pl-7">
+            Built-in and can&rsquo;t be loosened — keeps you compliant in every market.
+          </p>
+        </div>
+      </div>
 
       {/* get paid */}
-      <section className="card p-5 sm:p-6" id="payments">
-        <h2 className="font-bold mb-1">Get paid online</h2>
-        <p className="text-sm text-ink-600 mb-4">
-          Connect Stripe and every reminder carries a Pay Now link. Money goes straight to your
-          account — we never touch it.
-        </p>
-        <ConnectStripeButton
-          connected={!!business.stripe_account_id}
-          chargesEnabled={business.stripe_charges_enabled}
-        />
-      </section>
+      <div id="payments">
+        <p className="section-label px-1 mb-2.5">Get paid online</p>
+        <div className="card p-4" style={{ borderRadius: 16 }}>
+          <p className="text-[13.5px] font-medium text-muted mb-3.5">
+            Connect Stripe and every reminder carries a Pay Now link. Money goes straight to your
+            account — we never touch it.
+          </p>
+          <ConnectStripeButton
+            connected={!!business.stripe_account_id}
+            chargesEnabled={business.stripe_charges_enabled}
+          />
+        </div>
+      </div>
 
-      {/* email-in address */}
-      <section className="card p-5 sm:p-6">
-        <h2 className="font-bold mb-1">Your invoice inbox</h2>
-        <p className="text-sm text-ink-600 mb-3">
-          Forward invoice emails here and PaidUp reads them for you — you just confirm 4 fields.
-        </p>
-        <p className="font-mono text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 select-all">
-          bills+{business.inbound_alias}@paidup.app
-        </p>
-      </section>
+      {/* invoice inbox */}
+      <div>
+        <p className="section-label px-1 mb-2.5">Your invoice inbox</p>
+        <div className="card p-4" style={{ borderRadius: 16 }}>
+          <p className="text-[13.5px] font-medium text-muted mb-3">
+            Forward invoice emails here — {BRAND} reads them, you confirm 4 fields.
+          </p>
+          <p className="bg-surface2 border border-hair rounded-xl px-3.5 py-3 font-disp font-bold text-sm text-accent-ink break-all select-all">
+            bills+{business.inbound_alias}@{BRAND_TLD}
+          </p>
+        </div>
+      </div>
 
       {/* billing */}
-      <section id="billing">
-        <h2 className="font-bold mb-1">Billing</h2>
-        <p className="text-sm text-ink-600 mb-4">
-          {business.plan === "trial"
-            ? `Free trial — ${trialDaysLeft(business)} days left. Pick a plan any time.`
-            : business.plan === "expired"
-              ? "Your trial has ended. Pick a plan to resume reminders."
-              : `You're on the ${business.plan} plan.`}
-        </p>
+      <div id="billing">
+        <p className="section-label px-1 mb-2.5">Plan &amp; billing</p>
+        <div
+          className="rounded-2xl border border-hair p-4 mb-3"
+          style={{ background: "var(--accent-soft)" }}
+        >
+          <p className="font-bold text-[15px] text-ink">
+            {business.plan === "trial"
+              ? `Free trial — ${trialDaysLeft(business)} days left`
+              : business.plan === "expired"
+                ? "Your trial has ended"
+                : `You're on the ${business.plan} plan`}
+          </p>
+          <p className="text-[12.5px] font-medium text-muted mt-0.5">
+            {business.plan === "trial" || business.plan === "expired"
+              ? "Pick a plan below · cancel anytime"
+              : "Manage or change your plan below"}
+          </p>
+        </div>
         <PlanPicker currentPlan={business.plan} />
-      </section>
+      </div>
 
-      <form action={signOut} className="text-center pb-4">
-        <button type="submit" className="text-sm text-ink-400 underline">
-          Sign out
+      <form action={signOut} className="pt-1 pb-3">
+        <button type="submit" className="btn-danger w-full text-sm">
+          Log out
         </button>
       </form>
     </div>
