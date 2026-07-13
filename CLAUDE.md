@@ -1,9 +1,9 @@
 # PayPigeon — conventions
 
-Automated invoice reminders for trades businesses. PRD lives at `../PRD-PayPigeon-invoice-reminders.md`.
+Automated invoice reminders for trades businesses. PRD lives at `../PRD-PaidUp-invoice-reminders.md`.
 
 ## Stack
-Next.js 15 App Router + server actions · Tailwind v4 (theme tokens in `app/globals.css`) · Supabase (project `sxufwgdlxtyobncjutdv`) · Stripe Connect Standard + Billing · Twilio SMS · Resend email · Claude API extraction.
+Next.js 15 App Router + server actions · Tailwind v4 (theme tokens in `app/globals.css`) · Supabase (project `tmzcixefvfbozzmokduq`) · Stripe Connect Standard + Billing · Telnyx SMS · Resend email · Claude API extraction.
 
 ## Hard rules
 - `late` is computed ONLY in the `invoices_view` SQL view. Never re-derive it in app code.
@@ -17,7 +17,7 @@ Next.js 15 App Router + server actions · Tailwind v4 (theme tokens in `app/glob
 ## Layout
 - `lib/` — scheduler, senders, templates (tone copy), tz, plans, stats, extraction
 - `app/actions/` — server actions (invoices, business, billing, scheduler, auth)
-- `app/api/` — crons (`cron/*`), webhooks (`webhooks/{stripe,twilio,resend}`), `inbound` (email-forward), `extract`, `pay/checkout`
+- `app/api/` — crons (`cron/*`), webhooks (`webhooks/{stripe,telnyx,resend}`), `inbound` (email-forward), `extract`, `pay/checkout`
 - `app/(app)/` — authed shell (invoices, dashboard, settings)
 - DB migrations applied via Supabase MCP (`apply_migration`)
 

@@ -39,17 +39,33 @@ export async function sendEmail(opts: {
   }
 }
 
+/** SMS via Telnyx (https://developers.telnyx.com/docs/messaging/messages/send-a-message). */
 export async function sendSms(opts: { to: string; body: string }): Promise<SendResult> {
-  const sid = process.env.TWILIO_ACCOUNT_SID;
-  const token = process.env.TWILIO_AUTH_TOKEN;
-  const from = process.env.TWILIO_FROM_NUMBER;
-  if (!sid || !token || !from) return { status: "simulated" };
+  const apiKey = process.env.TELNYX_API_KEY;
+  const from = process.env.TELNYX_FROM_NUMBER;
+  const messagingProfileId = process.env.TELNYX_MESSAGING_PROFILE_ID;
+  if (!apiKey || !from) return { status: "simulated" };
 
   try {
-    const twilio = (await import("twilio")).default;
-    const client = twilio(sid, token);
-    const msg = await client.messages.create({ to: opts.to, from, body: opts.body });
-    return { status: "sent", providerId: msg.sid };
+    const res = await fetch("https://api.telnyx.com/v2/messages", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from,
+        to: opts.to,
+        text: opts.body,
+        ...(messagingProfileId ? { messaging_profile_id: messagingProfileId } : {}),
+      }),
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      const message = json?.errors?.[0]?.detail || json?.errors?.[0]?.title || `HTTP ${res.status}`;
+      return { status: "failed", error: message };
+    }
+    return { status: "sent", providerId: json?.data?.id };
   } catch (e) {
     return { status: "failed", error: e instanceof Error ? e.message : String(e) };
   }
