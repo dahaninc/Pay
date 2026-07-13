@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { startSubscription, connectStripe } from "@/app/actions/billing";
-import { PLANS, YEARLY_DISCOUNT_PCT, priceFor, yearlyMonthlyEquivalent, type BillingInterval } from "@/lib/plans";
+import { PLANS, YEARLY_DISCOUNT_PCT, formatPlanPrice, yearlyMonthlyEquivalent, type BillingInterval } from "@/lib/plans";
 
 export function PlanPicker({ currentPlan }: { currentPlan: string }) {
   const [pending, startTransition] = useTransition();
@@ -43,7 +43,7 @@ export function PlanPicker({ currentPlan }: { currentPlan: string }) {
         {(Object.keys(PLANS) as (keyof typeof PLANS)[]).map((key) => {
           const plan = PLANS[key];
           const active = currentPlan === key;
-          const price = priceFor(key, interval);
+          const price = formatPlanPrice(key, interval);
           return (
             <div
               key={key}

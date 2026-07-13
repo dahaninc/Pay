@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { CheckIcon } from "@/components/icons";
-import { PLANS, YEARLY_DISCOUNT_PCT, priceFor, yearlyMonthlyEquivalent, type BillingInterval } from "@/lib/plans";
+import { PLANS, YEARLY_DISCOUNT_PCT, formatPlanPrice, yearlyMonthlyEquivalent, type BillingInterval } from "@/lib/plans";
 
 const BLURBS: Record<keyof typeof PLANS, string> = {
   solo: "For one-person outfits",
@@ -55,7 +55,7 @@ export function LandingPricing() {
       >
         {(Object.keys(PLANS) as (keyof typeof PLANS)[]).map((key) => {
           const plan = PLANS[key];
-          const price = priceFor(key, interval);
+          const price = formatPlanPrice(key, interval);
           const features = [
             plan.invoicesPerMonth === Infinity
               ? "Unlimited invoices"

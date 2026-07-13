@@ -128,20 +128,20 @@ add_var "STRIPE_PRICE_PRO" \
   required-for-feature
 
 echo ""
-echo "── Yearly prices (25% off) ──"
+echo "── Yearly prices (~25% off, .99 pricing) ──"
 echo "  In each product above, add a second price: Recurring, Yearly, and one of:"
-echo "    Solo \$261/yr · Crew \$441/yr · Pro \$891/yr  (= 12 months at 25% off, rounded to the dollar)"
+echo "    Solo \$259.99/yr · Crew \$439.99/yr · Pro \$889.99/yr"
 
 add_var "STRIPE_PRICE_SOLO_YEARLY" \
-  "Stripe Dashboard → Product catalog → Solo product → the \$261/yr price → its Price ID." \
+  "Stripe Dashboard → Product catalog → Solo product → the \$259.99/yr price → its Price ID." \
   required-for-feature
 
 add_var "STRIPE_PRICE_CREW_YEARLY" \
-  "Stripe Dashboard → Product catalog → Crew product → the \$441/yr price → its Price ID." \
+  "Stripe Dashboard → Product catalog → Crew product → the \$439.99/yr price → its Price ID." \
   required-for-feature
 
 add_var "STRIPE_PRICE_PRO_YEARLY" \
-  "Stripe Dashboard → Product catalog → Pro product → the \$891/yr price → its Price ID." \
+  "Stripe Dashboard → Product catalog → Pro product → the \$889.99/yr price → its Price ID." \
   required-for-feature
 
 echo ""
