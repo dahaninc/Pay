@@ -1,9 +1,9 @@
 import type { Business } from "@/lib/types";
 
 export const PLANS = {
-  solo: { name: "Solo", price: 29, yearly: 290, users: 1, invoicesPerMonth: 30, sms: 100 },
-  crew: { name: "Crew", price: 49, yearly: 490, users: 3, invoicesPerMonth: 100, sms: 300 },
-  pro: { name: "Pro", price: 99, yearly: 990, users: 10, invoicesPerMonth: Infinity, sms: 1000 },
+  solo: { name: "Solo", price: 29, users: 1, invoicesPerMonth: 30, sms: 100 },
+  crew: { name: "Crew", price: 49, users: 3, invoicesPerMonth: 100, sms: 300 },
+  pro: { name: "Pro", price: 99, users: 10, invoicesPerMonth: Infinity, sms: 1000 },
 } as const;
 
 export function invoiceLimitFor(business: Business): number {
