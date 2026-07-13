@@ -5,8 +5,13 @@ import { stopSequence } from "@/lib/scheduler";
 
 export async function POST(request: NextRequest) {
   const key = process.env.STRIPE_SECRET_KEY;
-  const whSecret = process.env.STRIPE_WEBHOOK_SECRET;
-  if (!key || !whSecret) {
+  // Two separate Stripe destinations point at this one URL: "Your account" scope
+  // (subscription billing) and "Connected accounts" scope (Pay Now checkouts +
+  // Connect onboarding) — each has its own signing secret, so try both.
+  const whSecrets = [process.env.STRIPE_WEBHOOK_SECRET, process.env.STRIPE_CONNECT_WEBHOOK_SECRET].filter(
+    (s): s is string => !!s
+  );
+  if (!key || whSecrets.length === 0) {
     return NextResponse.json({ error: "stripe not configured" }, { status: 503 });
   }
   const db = createAdminSupabase();
@@ -18,10 +23,16 @@ export async function POST(request: NextRequest) {
   const body = await request.text();
   const sig = request.headers.get("stripe-signature");
 
-  let event: Stripe.Event;
-  try {
-    event = stripe.webhooks.constructEvent(body, sig!, whSecret);
-  } catch {
+  let event: Stripe.Event | null = null;
+  for (const secret of whSecrets) {
+    try {
+      event = stripe.webhooks.constructEvent(body, sig!, secret);
+      break;
+    } catch {
+      // try the next secret
+    }
+  }
+  if (!event) {
     return NextResponse.json({ error: "invalid signature" }, { status: 400 });
   }
 
