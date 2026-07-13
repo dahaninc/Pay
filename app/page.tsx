@@ -4,7 +4,7 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { PLANS } from "@/lib/plans";
 import { Logo } from "@/components/Logo";
 import { CheckIcon } from "@/components/icons";
-import { BRAND } from "@/lib/brand";
+import { BRAND, CONTACT_EMAIL } from "@/lib/brand";
 
 const HOW_STEPS = [
   {
@@ -224,6 +224,12 @@ export default async function Landing({
           </p>
           <p className="text-xs font-medium text-muted opacity-80 mt-1">
             A reminder tool acting on your behalf, not a debt collector.
+          </p>
+          <p className="text-xs font-medium text-muted mt-3">
+            Contact us:{" "}
+            <a href={`mailto:${CONTACT_EMAIL}`} className="underline hover:text-ink">
+              {CONTACT_EMAIL}
+            </a>
           </p>
         </footer>
       </div>

@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { SENDER_EMAIL } from "@/lib/brand";
 
 export interface SendResult {
   status: "sent" | "simulated" | "failed";
@@ -23,7 +24,7 @@ export async function sendEmail(opts: {
 
   try {
     const resend = new Resend(apiKey);
-    const from = process.env.PAYPIGEON_FROM_EMAIL || "PayPigeon <info@paypigeon.io>";
+    const from = process.env.PAYPIGEON_FROM_EMAIL || `PayPigeon <${SENDER_EMAIL}>`;
     const { data, error } = await resend.emails.send({
       from: opts.fromName ? from.replace(/^[^<]*</, `${opts.fromName} <`) : from,
       to: opts.to,
