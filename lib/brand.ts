@@ -1,4 +1,5 @@
-/** Product brand — single place to change the name. The winner design uses "Sorted". */
-export const BRAND = "Sorted";
-export const BRAND_MARK = "S";
-export const BRAND_TLD = "sorted.app";
+/** Product brand — single place to change the name. */
+export const BRAND = "PayPigeon";
+export const BRAND_MARK = "🐦";
+export const BRAND_TLD = "paypigeon.io";
+export const BRAND_URL = "https://www.paypigeon.io";

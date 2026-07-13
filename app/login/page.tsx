@@ -4,6 +4,7 @@ import { useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { createBrowserSupabase } from "@/lib/supabase/client";
+import { Logo } from "@/components/Logo";
 
 function LoginInner() {
   const params = useSearchParams();
@@ -42,9 +43,9 @@ function LoginInner() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-5 bg-surface">
-      <Link href="/" className="text-2xl font-bold tracking-tight mb-8">
-        Sorted
+    <div className="min-h-screen flex flex-col items-center justify-center px-5 bg-bg">
+      <Link href="/" className="mb-8">
+        <Logo />
       </Link>
       <div className="card w-full max-w-sm p-7">
         {phase === "email" ? (

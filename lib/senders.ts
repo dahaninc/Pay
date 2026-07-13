@@ -23,7 +23,7 @@ export async function sendEmail(opts: {
 
   try {
     const resend = new Resend(apiKey);
-    const from = process.env.PAIDUP_FROM_EMAIL || "Sorted <onboarding@resend.dev>";
+    const from = process.env.PAIDUP_FROM_EMAIL || "PayPigeon <onboarding@resend.dev>";
     const { data, error } = await resend.emails.send({
       from: opts.fromName ? from.replace(/^[^<]*</, `${opts.fromName} <`) : from,
       to: opts.to,

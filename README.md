@@ -1,6 +1,6 @@
-# PaidUp
+# PayPigeon
 
-**Send the invoice. We'll chase it.** Automated invoice reminders + plain-English cash-flow view for trades businesses. Built per [the PRD](../PRD-PaidUp-invoice-reminders.md).
+**Send the invoice. We'll chase it.** Automated invoice reminders + plain-English cash-flow view for trades businesses. Built per [the PRD](../PRD-PayPigeon-invoice-reminders.md).
 
 ## What works today
 
@@ -11,7 +11,7 @@ The complete core loop, end to end:
 - **Reminder engine** — 5-step default sequence (heads-up −3d → final notice +21d), tone dial (Friendly/Professional/Firm), per-step editable templates with merge tags, idempotent scheduler, auto-stop on payment
 - **Compliance built in** — sends only 9:00–20:00 local, never Sundays; STOP replies halt SMS instantly (`/api/webhooks/twilio`); UK/AU messages carry an opt-out link instead; one reminder max per invoice per 24h
 - **Get paid** — public pay page per invoice (`/pay/<token>`), Stripe Connect Standard onboarding, Pay Now checkout on the user's own Stripe account, webhook auto-marks paid + stops reminders; manual "mark paid" always works
-- **Dashboard** — You're owed / Overdue / **Recovered by PaidUp** / avg days-to-pay with trend, aging buckets (tap to filter), upcoming reminders
+- **Dashboard** — You're owed / Overdue / **Recovered by PayPigeon** / avg days-to-pay with trend, aging buckets (tap to filter), upcoming reminders
 - **Money Monday digest** — weekly email cron
 - **Billing** — 14-day trial (no card), Solo $29 / Crew $49 / Pro $99 via Stripe Billing, plan limits enforced, trial-expiry lockout of sends
 - **Multi-tenant security** — Postgres RLS on every table, keyed by business membership
@@ -38,13 +38,13 @@ The dashboard has a **"Process due reminders now"** button that runs the schedul
 | **Deploy** | Push to GitHub → import to Vercel. `vercel.json` already defines the crons. Set all env vars from `.env.example`. Set `NEXT_PUBLIC_APP_URL` to the prod domain. |
 | **Supabase service key** | Dashboard → Settings → API keys → create secret key → `SUPABASE_SECRET_KEY`. Required for cron sends, webhooks, inbound email. |
 | **Supabase auth URLs** | Dashboard → Auth → URL Configuration: set Site URL to prod domain, add `https://<domain>/auth/callback` to redirect URLs. |
-| **Resend** | Create API key → `RESEND_API_KEY`. Verify your sending domain and set `PAIDUP_FROM_EMAIL` (e.g. `PaidUp <remind@mail.paidup.app>`). Add webhook → `https://<domain>/api/webhooks/resend` (delivered/opened/clicked/bounced). |
-| **Inbound email** | Point an inbound route (Resend Inbound or Cloudflare Email Workers) for `bills+*@paidup.app` at `https://<domain>/api/inbound`. Aliases are per-business (`businesses.inbound_alias`). |
+| **Resend** | Create API key → `RESEND_API_KEY`. Verify your sending domain and set `PAIDUP_FROM_EMAIL` (e.g. `PayPigeon <remind@mail.paypigeon.io>`). Add webhook → `https://<domain>/api/webhooks/resend` (delivered/opened/clicked/bounced). |
+| **Inbound email** | Point an inbound route (Resend Inbound or Cloudflare Email Workers) for `bills+*@paypigeon.io` at `https://<domain>/api/inbound`. Aliases are per-business (`businesses.inbound_alias`). |
 | **Twilio** | Account SID/token/from number → env. **US launch requires A2P 10DLC brand + campaign registration before sending.** Set the number's inbound webhook to `https://<domain>/api/webhooks/twilio` (STOP handling). |
 | **Stripe** | `STRIPE_SECRET_KEY` + create 3 subscription prices → `STRIPE_PRICE_SOLO/CREW/PRO`. Webhook endpoint `https://<domain>/api/webhooks/stripe` with `checkout.session.completed`, `account.updated`, `customer.subscription.*` — **enable "listen to Connect accounts" for checkout events**. `STRIPE_WEBHOOK_SECRET` from the endpoint. |
 | **Anthropic** | `ANTHROPIC_API_KEY` for photo/PDF/email extraction. |
 | **Cron auth** | Set `CRON_SECRET` in Vercel (crons send it automatically). |
-| **Domain** | PRD suggests deciding the name (PaidUp/ChaseLess/OwedApp/…) before buying. |
+| **Domain** | Name decided: **PayPigeon**, `www.paypigeon.io`. Register it, point DNS at Vercel, set `NEXT_PUBLIC_APP_URL=https://www.paypigeon.io`. |
 
 ## Architecture
 

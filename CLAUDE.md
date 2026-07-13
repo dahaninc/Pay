@@ -1,6 +1,6 @@
-# PaidUp — conventions
+# PayPigeon — conventions
 
-Automated invoice reminders for trades businesses. PRD lives at `../PRD-PaidUp-invoice-reminders.md`.
+Automated invoice reminders for trades businesses. PRD lives at `../PRD-PayPigeon-invoice-reminders.md`.
 
 ## Stack
 Next.js 15 App Router + server actions · Tailwind v4 (theme tokens in `app/globals.css`) · Supabase (project `sxufwgdlxtyobncjutdv`) · Stripe Connect Standard + Billing · Twilio SMS · Resend email · Claude API extraction.

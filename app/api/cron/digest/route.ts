@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
     <p style="font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:#6b7280;margin:0 0 6px;">Money Monday · ${biz.name}</p>
     ${
       stats.recoveredCents > 0
-        ? `<h1 style="font-size:24px;margin:0 0 4px;">Sorted has recovered ${formatMoney(stats.recoveredCents, biz.currency)} for you 🎉</h1>`
+        ? `<h1 style="font-size:24px;margin:0 0 4px;">PayPigeon has recovered ${formatMoney(stats.recoveredCents, biz.currency)} for you 🎉</h1>`
         : `<h1 style="font-size:24px;margin:0 0 4px;">Your week in money</h1>`
     }
     <table style="width:100%;margin:18px 0;border-collapse:collapse;">
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
     ${lateList ? `<p style="font-weight:600;margin:16px 0 4px;">Biggest overdue invoices</p><table style="border-collapse:collapse;font-size:14px;">${lateList}</table>` : `<p>No overdue invoices right now. Nice one.</p>`}
     <p style="margin-top:22px;"><a href="${appUrl()}/dashboard" style="display:inline-block;background:#1f7a4d;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;font-weight:600;">Open your dashboard</a></p>
   </div>
-  <p style="text-align:center;color:#9aa1a9;font-size:12px;margin-top:14px;">Sorted — send the invoice, we'll chase it.</p>
+  <p style="text-align:center;color:#9aa1a9;font-size:12px;margin-top:14px;">PayPigeon — send the invoice, we'll chase it.</p>
 </div></body></html>`;
 
     const result = await sendEmail({

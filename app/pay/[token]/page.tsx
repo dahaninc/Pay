@@ -104,7 +104,7 @@ export default async function PayPage({
       </div>
 
       <p className="text-center text-xs text-ink-400 mt-5">
-        Reminders powered by Sorted · payments go directly to {invoice.business_name}
+        Reminders powered by PayPigeon · payments go directly to {invoice.business_name}
       </p>
     </Shell>
   );
