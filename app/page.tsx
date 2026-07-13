@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { PLANS } from "@/lib/plans";
 import { Logo } from "@/components/Logo";
 import { CheckIcon } from "@/components/icons";
+import { LandingPricing } from "@/components/LandingPricing";
 import { BRAND, CONTACT_EMAIL } from "@/lib/brand";
 
 const HOW_STEPS = [
@@ -153,70 +153,7 @@ export default async function Landing({
           ))}
         </section>
 
-        {/* pricing */}
-        <section className="mt-12">
-          <h2 className="font-disp font-extrabold text-[22px] text-ink text-center">
-            Simple pricing
-          </h2>
-          <p className="text-sm font-medium text-muted text-center mt-1.5">
-            Every plan starts with 14 days free. No card up front.
-          </p>
-          <div
-            className="grid gap-4 mt-[22px]"
-            style={{ gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))" }}
-          >
-            {(
-              [
-                ["solo", "For one-person outfits", false],
-                ["crew", "For small crews", true],
-                ["pro", "For established firms", false],
-              ] as const
-            ).map(([key, blurb, popular]) => {
-              const plan = PLANS[key];
-              const features = [
-                plan.invoicesPerMonth === Infinity
-                  ? "Unlimited invoices"
-                  : `${plan.invoicesPerMonth} active invoices / mo`,
-                `${plan.sms} SMS included`,
-                `${plan.users} ${plan.users === 1 ? "user" : "users"}${key === "pro" ? " · priority support + API" : ""}`,
-              ];
-              return (
-                <div
-                  key={key}
-                  className="bg-surface rounded-[18px] p-5 flex flex-col"
-                  style={{ border: popular ? "2px solid var(--accent)" : "1px solid var(--hair)" }}
-                >
-                  {popular && (
-                    <span className="self-start px-2.5 py-1 rounded-full bg-accent text-accent-ink text-[11px] font-extrabold mb-2.5">
-                      Most popular
-                    </span>
-                  )}
-                  <p className="font-bold text-[17px] text-ink">{plan.name}</p>
-                  <p className="text-[13px] font-medium text-muted">{blurb}</p>
-                  <p className="mt-3.5 mb-1">
-                    <span className="font-disp font-extrabold text-[38px] text-ink tnum">
-                      ${plan.price}
-                    </span>
-                    <span className="text-muted font-semibold">/mo</span>
-                  </p>
-                  <div className="flex flex-col gap-2 my-3.5 mb-[18px]">
-                    {features.map((f) => (
-                      <span key={f} className="flex items-center gap-2 text-[13.5px] font-medium text-muted">
-                        <span className="text-win">
-                          <CheckIcon size={15} strokeWidth={3} />
-                        </span>
-                        {f}
-                      </span>
-                    ))}
-                  </div>
-                  <Link href="/login" className={`${popular ? "btn-primary" : "btn-secondary !bg-surface2"} mt-auto text-sm`}>
-                    Start free trial
-                  </Link>
-                </div>
-              );
-            })}
-          </div>
-        </section>
+        <LandingPricing />
 
         <footer className="border-t border-hair mt-11 py-6 pb-8 text-center">
           <p className="text-[13px] font-semibold text-muted">

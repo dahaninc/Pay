@@ -11,22 +11,25 @@ function stripeClient(): Stripe | null {
   return new Stripe(key);
 }
 
-const PRICE_ENV: Record<string, string | undefined> = {
-  solo: process.env.STRIPE_PRICE_SOLO,
-  crew: process.env.STRIPE_PRICE_CREW,
-  pro: process.env.STRIPE_PRICE_PRO,
+const PRICE_ENV: Record<string, Record<"monthly" | "yearly", string | undefined>> = {
+  solo: { monthly: process.env.STRIPE_PRICE_SOLO, yearly: process.env.STRIPE_PRICE_SOLO_YEARLY },
+  crew: { monthly: process.env.STRIPE_PRICE_CREW, yearly: process.env.STRIPE_PRICE_CREW_YEARLY },
+  pro: { monthly: process.env.STRIPE_PRICE_PRO, yearly: process.env.STRIPE_PRICE_PRO_YEARLY },
 };
 
 /** Subscription checkout (Stripe Billing). */
 export async function startSubscription(formData: FormData) {
   const plan = String(formData.get("plan"));
+  const interval = formData.get("interval") === "yearly" ? "yearly" : "monthly";
   const { supabase, business, user } = await requireBusiness();
   const stripe = stripeClient();
   if (!stripe)
     return { error: "Billing isn't configured yet — add STRIPE_SECRET_KEY and price IDs to enable subscriptions." };
-  const price = PRICE_ENV[plan];
-  if (!price)
-    return { error: `No Stripe price configured for the ${plan} plan (STRIPE_PRICE_${plan.toUpperCase()}).` };
+  const price = PRICE_ENV[plan]?.[interval];
+  if (!price) {
+    const envName = `STRIPE_PRICE_${plan.toUpperCase()}${interval === "yearly" ? "_YEARLY" : ""}`;
+    return { error: `No Stripe price configured for the ${plan} plan (${interval}) — set ${envName}.` };
+  }
 
   let customerId = business.stripe_customer_id;
   if (!customerId) {
@@ -46,8 +49,8 @@ export async function startSubscription(formData: FormData) {
     mode: "subscription",
     customer: customerId,
     line_items: [{ price, quantity: 1 }],
-    metadata: { business_id: business.id, plan },
-    subscription_data: { metadata: { business_id: business.id, plan } },
+    metadata: { business_id: business.id, plan, interval },
+    subscription_data: { metadata: { business_id: business.id, plan, interval } },
     success_url: `${appUrl()}/settings?billing=success`,
     cancel_url: `${appUrl()}/settings?billing=cancelled`,
   });

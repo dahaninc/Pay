@@ -2,25 +2,72 @@
 
 import { useState, useTransition } from "react";
 import { startSubscription, connectStripe } from "@/app/actions/billing";
-import { PLANS } from "@/lib/plans";
+import { PLANS, YEARLY_DISCOUNT_PCT, priceFor, yearlyMonthlyEquivalent, type BillingInterval } from "@/lib/plans";
 
 export function PlanPicker({ currentPlan }: { currentPlan: string }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [interval, setInterval] = useState<BillingInterval>("monthly");
 
   return (
     <div>
+      <div className="flex items-center justify-center gap-3 mb-5">
+        <div className="inline-flex bg-surface2 border border-hair rounded-full p-1">
+          <button
+            type="button"
+            onClick={() => setInterval("monthly")}
+            className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-colors ${
+              interval === "monthly" ? "bg-surface text-ink shadow-sm" : "text-muted"
+            }`}
+          >
+            Monthly
+          </button>
+          <button
+            type="button"
+            onClick={() => setInterval("yearly")}
+            className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-colors ${
+              interval === "yearly" ? "bg-surface text-ink shadow-sm" : "text-muted"
+            }`}
+          >
+            Yearly
+          </button>
+        </div>
+        {interval === "yearly" && (
+          <span className="text-xs font-bold text-win-ink bg-win-soft rounded-full px-2.5 py-1">
+            Save {YEARLY_DISCOUNT_PCT}%
+          </span>
+        )}
+      </div>
+
       <div className="grid sm:grid-cols-3 gap-3">
         {(Object.keys(PLANS) as (keyof typeof PLANS)[]).map((key) => {
           const plan = PLANS[key];
           const active = currentPlan === key;
+          const price = priceFor(key, interval);
           return (
-            <div key={key} className={`card p-4 ${active ? "ring-2 ring-brand-600" : ""}`}>
+            <div
+              key={key}
+              className={`card p-4 relative ${active ? "ring-2 ring-brand-600" : ""} ${
+                plan.recommended && !active ? "ring-2 ring-accent" : ""
+              }`}
+            >
+              {plan.recommended && (
+                <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 text-[11px] font-bold bg-accent text-accent-ink rounded-full px-2.5 py-0.5">
+                  Recommended
+                </span>
+              )}
               <p className="font-semibold">{plan.name}</p>
               <p className="text-2xl font-bold tnum">
-                ${plan.price}
-                <span className="text-sm text-ink-400 font-normal">/mo</span>
+                ${price}
+                <span className="text-sm text-ink-400 font-normal">
+                  {interval === "yearly" ? "/yr" : "/mo"}
+                </span>
               </p>
+              {interval === "yearly" && (
+                <p className="text-xs text-ink-400 tnum">
+                  (${yearlyMonthlyEquivalent(key).toFixed(2)}/mo billed yearly)
+                </p>
+              )}
               <p className="text-xs text-ink-600 mt-1">
                 {plan.invoicesPerMonth === Infinity
                   ? "Unlimited invoices"
@@ -37,6 +84,7 @@ export function PlanPicker({ currentPlan }: { currentPlan: string }) {
                     startTransition(async () => {
                       const fd = new FormData();
                       fd.set("plan", key);
+                      fd.set("interval", interval);
                       const result = await startSubscription(fd);
                       if (result?.error) setError(result.error);
                     })

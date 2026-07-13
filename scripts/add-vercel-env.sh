@@ -128,6 +128,23 @@ add_var "STRIPE_PRICE_PRO" \
   required-for-feature
 
 echo ""
+echo "── Yearly prices (25% off) ──"
+echo "  In each product above, add a second price: Recurring, Yearly, and one of:"
+echo "    Solo \$261/yr · Crew \$441/yr · Pro \$891/yr  (= 12 months at 25% off, rounded to the dollar)"
+
+add_var "STRIPE_PRICE_SOLO_YEARLY" \
+  "Stripe Dashboard → Product catalog → Solo product → the \$261/yr price → its Price ID." \
+  required-for-feature
+
+add_var "STRIPE_PRICE_CREW_YEARLY" \
+  "Stripe Dashboard → Product catalog → Crew product → the \$441/yr price → its Price ID." \
+  required-for-feature
+
+add_var "STRIPE_PRICE_PRO_YEARLY" \
+  "Stripe Dashboard → Product catalog → Pro product → the \$891/yr price → its Price ID." \
+  required-for-feature
+
+echo ""
 echo "── STRIPE_WEBHOOK_SECRET ──"
 echo "  This one needs your live URL first. In Stripe Dashboard → Developers → Webhooks → Add endpoint:"
 echo "    URL:    https://paypigeon.vercel.app/api/webhooks/stripe"
