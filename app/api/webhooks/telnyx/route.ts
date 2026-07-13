@@ -1,6 +1,8 @@
 import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminSupabase } from "@/lib/supabase/server";
+import { sendEmail } from "@/lib/senders";
+import { appUrl } from "@/lib/scheduler";
 
 const STOP_WORDS = ["stop", "stopall", "unsubscribe", "cancel", "end", "quit"];
 
@@ -46,7 +48,7 @@ export async function POST(request: NextRequest) {
     const body: string = String(msg.text ?? "").trim();
     if (!from) return NextResponse.json({ ok: true });
 
-    const { data: customers } = await db.from("customers").select("id, business_id").eq("phone", from);
+    const { data: customers } = await db.from("customers").select("id, business_id, name").eq("phone", from);
     const isStop = STOP_WORDS.includes(body.toLowerCase());
 
     for (const cust of customers ?? []) {
@@ -80,6 +82,36 @@ export async function POST(request: NextRequest) {
         status: "received",
         idempotency_key: `inbound:${from}:${Date.now()}`,
       });
+
+      // let the business owner know — this is the SMS-reply notification, not a forward of the
+      // raw text (that would break STOP handling and double SMS cost); an email nudge instead
+      if (invoice?.id && body) {
+        const { data: biz } = await db
+          .from("businesses")
+          .select("name, owner_id, reply_to_email")
+          .eq("id", cust.business_id)
+          .single();
+        if (biz) {
+          const { data: owner } = await db.auth.admin.getUserById(biz.owner_id);
+          const to = owner?.user?.email || biz.reply_to_email;
+          if (to) {
+            const invoiceUrl = `${appUrl()}/invoices/${invoice.id}`;
+            await sendEmail({
+              to,
+              subject: `💬 ${cust.name} replied`,
+              html: `<!doctype html><html><body style="margin:0;background:#f6f7f9;padding:24px 0;">
+<div style="max-width:520px;margin:0 auto;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#1a1d21;">
+  <div style="background:#fff;border:1px solid #e5e8eb;border-radius:12px;padding:28px;">
+    <p style="font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:#6b7280;margin:0 0 10px;">New text reply</p>
+    <p style="font-size:16px;margin:0 0 6px;"><strong>${cust.name}</strong> replied:</p>
+    <p style="font-size:16px;background:#f8fafc;border-radius:8px;padding:14px 16px;margin:0 0 20px;white-space:pre-wrap;">${body.slice(0, 500)}</p>
+    <a href="${invoiceUrl}" style="display:inline-block;background:#1f7a4d;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;font-weight:600;">View invoice</a>
+  </div>
+</div></body></html>`,
+            });
+          }
+        }
+      }
     }
   } else if (eventType === "message.finalized") {
     // delivery outcome for a message we sent — mirror the Resend webhook's never-downgrade pattern

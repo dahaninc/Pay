@@ -10,6 +10,7 @@ The complete core loop, end to end:
 - **Invoices in, 4 ways** — manual add (4 fields, ~20s) · photo/PDF scan with Claude extraction + confirm card · CSV import with preview · email-forward webhook (`/api/inbound`)
 - **Reminder engine** — 5-step default sequence (heads-up −3d → final notice +21d), tone dial (Friendly/Professional/Firm), per-step editable templates with merge tags, idempotent scheduler, auto-stop on payment
 - **Compliance built in** — sends only 9:00–20:00 local, never Sundays; STOP replies halt SMS instantly (`/api/webhooks/telnyx`, Ed25519-signed); UK/AU messages carry an opt-out link instead; one reminder max per invoice per 24h
+- **SMS replies notify, not forward** — customer text replies land in the invoice timeline and trigger an email to the business owner (industry-standard pattern — see e.g. Podium/Jobber); raw SMS is never relayed to the owner's personal phone, which would break STOP compliance and double SMS cost
 - **Get paid** — public pay page per invoice (`/pay/<token>`), Stripe Connect Standard onboarding, Pay Now checkout on the user's own Stripe account, webhook auto-marks paid + stops reminders; manual "mark paid" always works
 - **Dashboard** — You're owed / Overdue / **Recovered by PayPigeon** / avg days-to-pay with trend, aging buckets (tap to filter), upcoming reminders
 - **Money Monday digest** — weekly email cron
