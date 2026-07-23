@@ -108,7 +108,7 @@ function LoginInner() {
                   type="email"
                   required
                   className="field"
-                  placeholder="dave@daveplumbing.com"
+                  placeholder=""
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
