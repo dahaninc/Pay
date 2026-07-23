@@ -17,10 +17,14 @@ const PRICE_ENV: Record<string, Record<"monthly" | "yearly", string | undefined>
   pro: { monthly: process.env.STRIPE_PRICE_PRO, yearly: process.env.STRIPE_PRICE_PRO_YEARLY },
 };
 
-/** Subscription checkout (Stripe Billing). */
+/** Subscription checkout (Stripe Billing). Pass trialDays to require a card up front
+ *  but delay the first charge (Stripe-native trial — no custom charge scheduling). */
 export async function startSubscription(formData: FormData) {
   const plan = String(formData.get("plan"));
   const interval = formData.get("interval") === "yearly" ? "yearly" : "monthly";
+  const trialDays = Number(formData.get("trialDays")) || undefined;
+  const successPath = String(formData.get("successPath") || "/settings?billing=success");
+  const cancelPath = String(formData.get("cancelPath") || "/settings?billing=cancelled");
   const { supabase, business, user } = await requireBusiness();
   const stripe = stripeClient();
   if (!stripe)
@@ -50,11 +54,50 @@ export async function startSubscription(formData: FormData) {
     customer: customerId,
     line_items: [{ price, quantity: 1 }],
     metadata: { business_id: business.id, plan, interval },
-    subscription_data: { metadata: { business_id: business.id, plan, interval } },
-    success_url: `${appUrl()}/settings?billing=success`,
-    cancel_url: `${appUrl()}/settings?billing=cancelled`,
+    subscription_data: {
+      metadata: { business_id: business.id, plan, interval },
+      ...(trialDays ? { trial_period_days: trialDays } : {}),
+    },
+    success_url: `${appUrl()}${successPath}`,
+    cancel_url: `${appUrl()}${cancelPath}`,
   });
   redirect(session.url!);
+}
+
+/** Stripe-hosted self-serve billing management (update card, view invoices, change plan). */
+export async function openBillingPortal() {
+  const { business } = await requireBusiness();
+  const stripe = stripeClient();
+  if (!stripe || !business.stripe_customer_id) {
+    return { error: "No billing account yet." };
+  }
+  const session = await stripe.billingPortal.sessions.create({
+    customer: business.stripe_customer_id,
+    return_url: `${appUrl()}/settings`,
+  });
+  redirect(session.url);
+}
+
+/**
+ * Jumps straight into Stripe's native subscription-cancel confirmation — no extra steps,
+ * no support email, no gate. Called from the "No thanks, cancel" button on the retention
+ * screen (app/(app)/settings/cancel/page.tsx). One click in, one click through.
+ */
+export async function openCancelFlow() {
+  const { business } = await requireBusiness();
+  const stripe = stripeClient();
+  if (!stripe || !business.stripe_customer_id || !business.stripe_subscription_id) {
+    return { error: "No active subscription to cancel." };
+  }
+  const session = await stripe.billingPortal.sessions.create({
+    customer: business.stripe_customer_id,
+    return_url: `${appUrl()}/settings`,
+    flow_data: {
+      type: "subscription_cancel",
+      subscription_cancel: { subscription: business.stripe_subscription_id },
+    },
+  });
+  redirect(session.url);
 }
 
 /** Stripe Connect (Standard) onboarding so customers can pay the business directly. */
@@ -64,26 +107,37 @@ export async function connectStripe() {
   if (!stripe)
     return { error: "Payments aren't configured yet — add STRIPE_SECRET_KEY to enable Pay Now links." };
 
-  let accountId = business.stripe_account_id;
-  if (!accountId) {
-    const account = await stripe.accounts.create({
-      type: "standard",
-      metadata: { business_id: business.id },
-    });
-    accountId = account.id;
-    await supabase
-      .from("businesses")
-      .update({ stripe_account_id: accountId })
-      .eq("id", business.id);
-  }
+  try {
+    let accountId = business.stripe_account_id;
+    if (!accountId) {
+      const account = await stripe.accounts.create({
+        type: "standard",
+        metadata: { business_id: business.id },
+      });
+      accountId = account.id;
+      await supabase
+        .from("businesses")
+        .update({ stripe_account_id: accountId })
+        .eq("id", business.id);
+    }
 
-  const link = await stripe.accountLinks.create({
-    account: accountId,
-    type: "account_onboarding",
-    refresh_url: `${appUrl()}/settings?stripe=refresh`,
-    return_url: `${appUrl()}/settings?stripe=connected`,
-  });
-  redirect(link.url);
+    const link = await stripe.accountLinks.create({
+      account: accountId,
+      type: "account_onboarding",
+      refresh_url: `${appUrl()}/settings?stripe=refresh`,
+      return_url: `${appUrl()}/settings?stripe=connected`,
+    });
+    redirect(link.url);
+  } catch (e) {
+    // NEXT_REDIRECT throws by design — rethrow so the redirect above actually happens
+    if (e instanceof Error && e.message === "NEXT_REDIRECT") throw e;
+    return {
+      error:
+        e instanceof Error && e.message.includes("sign")
+          ? "Stripe Connect isn't activated on this account yet — enable it at dashboard.stripe.com/connect, then try again."
+          : `Couldn't connect Stripe: ${e instanceof Error ? e.message : "unknown error"}`,
+    };
+  }
 }
 
 /** Refresh charges_enabled after onboarding returns. */

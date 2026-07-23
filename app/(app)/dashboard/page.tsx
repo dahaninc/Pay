@@ -16,31 +16,87 @@ interface AdvisorCard {
 export default async function DashboardPage() {
   const { supabase, business } = await requireBusiness();
 
-  const [stats, { data: upcoming }, { data: openInvoices }] = await Promise.all([
-    getHeaderStats(supabase, business.id, business.currency),
-    supabase
-      .from("invoice_sequences")
-      .select(
-        "*, invoice:invoices(number, amount_cents, currency, customer:customers(name)), sequence:sequences(steps)"
-      )
-      .eq("business_id", business.id)
-      .eq("state", "armed")
-      .not("next_run_at", "is", null)
-      .lte("next_run_at", new Date(Date.now() + 7 * 86400000).toISOString())
-      .order("next_run_at", { ascending: true })
-      .limit(6),
-    supabase
-      .from("invoices_view")
-      .select("*, customer:customers(*)")
-      .eq("business_id", business.id)
-      .in("status", ["outstanding"]),
-  ]);
+  // last 6 calendar months, oldest first, for the "Collected" chart (prototype design)
+  const chartStart = new Date();
+  chartStart.setUTCMonth(chartStart.getUTCMonth() - 5, 1);
+  chartStart.setUTCHours(0, 0, 0, 0);
+
+  const [stats, { data: upcoming }, { data: openInvoices }, { data: failedMsgs }, { data: recentPayments }] =
+    await Promise.all([
+      getHeaderStats(supabase, business.id, business.currency),
+      supabase
+        .from("invoice_sequences")
+        .select(
+          "*, invoice:invoices(number, amount_cents, currency, customer:customers(name)), sequence:sequences(steps)"
+        )
+        .eq("business_id", business.id)
+        .eq("state", "armed")
+        .not("next_run_at", "is", null)
+        .lte("next_run_at", new Date(Date.now() + 7 * 86400000).toISOString())
+        .order("next_run_at", { ascending: true })
+        .limit(6),
+      supabase
+        .from("invoices_view")
+        .select("*, customer:customers(*)")
+        .eq("business_id", business.id)
+        .in("status", ["outstanding"]),
+      supabase
+        .from("messages")
+        .select("invoice_id")
+        .eq("business_id", business.id)
+        .eq("direction", "outbound")
+        .eq("status", "failed")
+        .gte("created_at", new Date(Date.now() - 7 * 86400000).toISOString())
+        .limit(50),
+      supabase
+        .from("payments")
+        .select("amount_cents, paid_at")
+        .eq("business_id", business.id)
+        .gte("paid_at", chartStart.toISOString()),
+    ]);
+
+  // bucket real payments into the last 6 calendar months (prototype: "Collected — last 6 months")
+  const monthBuckets: { label: string; cents: number; current: boolean }[] = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date();
+    d.setUTCMonth(d.getUTCMonth() - i, 1);
+    monthBuckets.push({
+      label: d.toLocaleString("en-US", { month: "short", timeZone: "UTC" }),
+      cents: 0,
+      current: i === 0,
+    });
+  }
+  for (const p of (recentPayments ?? []) as { amount_cents: number; paid_at: string }[]) {
+    const pd = new Date(p.paid_at);
+    const idx = 5 - ((new Date().getUTCFullYear() - pd.getUTCFullYear()) * 12 + (new Date().getUTCMonth() - pd.getUTCMonth()));
+    if (idx >= 0 && idx < 6) monthBuckets[idx].cents += p.amount_cents;
+  }
+  const maxMonth = Math.max(...monthBuckets.map((b) => b.cents), 1);
 
   const open = (openInvoices ?? []) as (InvoiceRow & { customer: Customer })[];
   const fmt = (c: number) => formatMoney(c, business.currency);
 
   // ---- rule-based advisor cards (max 3, plain English, per PRD guardrails) ----
   const advisor: AdvisorCard[] = [];
+
+  // Failed deliveries come first — a reminder the customer never got is the one thing
+  // this product must never be quiet about. (Owner also gets an email; see lib/notify.ts.)
+  const openById = new Map(open.map((r) => [r.id, r]));
+  const failedOpen = [
+    ...new Set(((failedMsgs ?? []) as { invoice_id: string | null }[]).map((m) => m.invoice_id)),
+  ]
+    .filter((id): id is string => !!id && openById.has(id))
+    .map((id) => openById.get(id)!);
+  if (failedOpen.length > 0) {
+    const first = failedOpen[0];
+    advisor.push({
+      head: `⚠️ ${failedOpen.length} ${failedOpen.length === 1 ? "reminder" : "reminders"} couldn't be delivered`,
+      body: `${failedOpen.length === 1 ? `${first.customer?.name} isn't` : `${failedOpen.map((r) => r.customer?.name).slice(0, 2).join(" & ")}${failedOpen.length > 2 ? " and others" : ""} aren't`} getting your reminders — usually a wrong number or a dead email address. Fix the contact details and sending resumes automatically.`,
+      accent: "var(--danger)",
+      action: { label: "Fix contact details", href: `/invoices/${first.id}/edit` },
+    });
+  }
+
   const biggestLate = open
     .filter((r) => r.display_status === "late")
     .sort((a, b) => b.amount_cents - a.amount_cents)[0];
@@ -161,6 +217,26 @@ export default async function DashboardPage() {
         <p className="text-xs text-muted mt-3.5">Tap a bar to see those invoices.</p>
       </div>
 
+      {/* collected per month — prototype's "Your money" chart, from real payments */}
+      <div className="card p-[18px] mt-4">
+        <p className="font-bold text-[15px] text-ink mb-4">Collected — last 6 months</p>
+        <div className="flex items-end gap-3.5 h-[150px]">
+          {monthBuckets.map((b) => (
+            <div key={b.label} className="flex-1 h-full flex flex-col items-center justify-end gap-2">
+              <div
+                className="w-full rounded-t-lg"
+                title={fmt(b.cents)}
+                style={{
+                  background: b.current ? "var(--accent)" : "var(--surface2)",
+                  height: `${b.cents > 0 ? Math.max(6, Math.round((b.cents / maxMonth) * 100)) : 2}%`,
+                }}
+              />
+              <span className="text-[11px] font-semibold text-muted">{b.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* advisor */}
       {advisor.length > 0 && (
         <>
@@ -172,7 +248,12 @@ export default async function DashboardPage() {
               <div
                 key={c.head}
                 className="card px-4 py-[15px]"
-                style={{ borderLeft: `3px solid ${c.accent}`, borderRadius: 14 }}
+                style={
+                  // failed-delivery card gets the prototype's ⚠️ accent-soft alert style
+                  c.head.includes("couldn't be delivered")
+                    ? { border: "1px solid var(--accent)", background: "var(--accent-soft)", borderRadius: 14 }
+                    : { borderLeft: `3px solid ${c.accent}`, borderRadius: 14 }
+                }
               >
                 <p className="font-bold text-[14.5px] text-ink">{c.head}</p>
                 <p className="text-[13.5px] leading-relaxed text-muted mt-1">{c.body}</p>

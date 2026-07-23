@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireBusiness } from "@/lib/supabase/server";
 import { Sidebar, Topbar, BottomNav } from "@/components/Shell";
-import { trialDaysLeft, isTrialExpired, PLANS } from "@/lib/plans";
+import { trialDaysLeft, isTrialExpired, PLANS, LTD_TIERS, LTD_MAX_STACK } from "@/lib/plans";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { business } = await requireBusiness();
@@ -13,9 +13,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       ? expired
         ? "Trial ended"
         : `Free trial · ${daysLeft} ${daysLeft === 1 ? "day" : "days"} left`
-      : business.plan === "expired"
-        ? "Plan lapsed"
-        : `${PLANS[business.plan as keyof typeof PLANS]?.name ?? business.plan} plan`;
+      : business.plan === "free"
+        ? "Free plan · no card yet"
+        : business.plan === "expired"
+          ? "Plan lapsed"
+          : business.plan === "lifetime"
+            ? LTD_TIERS[Math.max(1, Math.min(business.lifetime_tier, LTD_MAX_STACK)) as 1 | 2 | 3].name
+            : `${PLANS[business.plan as keyof typeof PLANS]?.name ?? business.plan} plan`;
 
   return (
     <div className="sm:flex min-h-screen">
@@ -23,6 +27,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         businessName={business.name}
         planLine={planLine}
         showPickPlan={business.plan === "trial" || business.plan === "expired"}
+        stripeConnected={!!business.stripe_account_id}
       />
       <div className="flex-1 min-w-0">
         <Topbar />

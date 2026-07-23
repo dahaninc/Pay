@@ -3,25 +3,29 @@
 import { useState } from "react";
 import Link from "next/link";
 import { CheckIcon } from "@/components/icons";
-import { PLANS, YEARLY_DISCOUNT_PCT, formatPlanPrice, yearlyMonthlyEquivalent, type BillingInterval } from "@/lib/plans";
+import { PLANS, YEARLY_DISCOUNT_PCT, formatPlanPrice, yearlyMonthlyEquivalent, smsOverageRateDisplay, type BillingInterval } from "@/lib/plans";
 
+// tags from the approved homepage prototype
 const BLURBS: Record<keyof typeof PLANS, string> = {
-  solo: "For one-person outfits",
-  crew: "For small crews",
-  pro: "For established firms",
+  solo: "For one-person operations",
+  crew: "For growing teams",
+  pro: "For AR desks at scale",
 };
 
 export function LandingPricing() {
   const [interval, setInterval] = useState<BillingInterval>("monthly");
 
   return (
-    <section className="mt-12">
-      <h2 className="font-disp font-extrabold text-[22px] text-ink text-center">Simple pricing</h2>
-      <p className="text-sm font-medium text-muted text-center mt-1.5">
-        Every plan starts with 14 days free. No card up front.
+    <section id="pricing" className="pt-[88px] scroll-mt-16">
+      <h2 className="font-disp font-extrabold text-[clamp(26px,3.6vw,38px)] text-ink text-center">
+        Simple, honest pricing
+      </h2>
+      <p className="text-sm font-medium text-muted text-center mt-2.5">
+        Start with 2 free invoices — no card. Upgrade when it&rsquo;s paying for itself.{" "}
+        <span className="text-muted opacity-70">(We only ask for a card on your 3rd invoice.)</span>
       </p>
 
-      <div className="flex items-center justify-center gap-3 mt-6">
+      <div className="flex items-center justify-center gap-3 mt-7">
         <div className="inline-flex bg-surface2 border border-hair rounded-full p-1">
           <button
             type="button"
@@ -50,44 +54,59 @@ export function LandingPricing() {
       </div>
 
       <div
-        className="grid gap-4 mt-[22px]"
-        style={{ gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))" }}
+        className="grid gap-4 mt-[26px]"
+        style={{ gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))" }}
       >
         {(Object.keys(PLANS) as (keyof typeof PLANS)[]).map((key) => {
           const plan = PLANS[key];
           const price = formatPlanPrice(key, interval);
+          // Crew is the prototype's featured dark card; Solo/Pro stay light
+          const dark = plan.recommended;
           const features = [
-            plan.invoicesPerMonth === Infinity
-              ? "Unlimited invoices"
-              : `${plan.invoicesPerMonth} active invoices / mo`,
-            `${plan.sms} SMS included`,
+            `${plan.invoicesPerMonth.toLocaleString("en-US")} active invoices / mo`,
+            `${plan.sms.toLocaleString("en-US")} SMS included, then ${smsOverageRateDisplay()}/SMS`,
             `${plan.users} ${plan.users === 1 ? "user" : "users"}${key === "pro" ? " · priority support + API" : ""}`,
           ];
           return (
             <div
               key={key}
-              className="bg-surface rounded-[18px] p-5 flex flex-col relative"
-              style={{ border: plan.recommended ? "2px solid var(--accent)" : "1px solid var(--hair)" }}
+              className="rounded-[18px] p-6 flex flex-col relative"
+              style={
+                dark
+                  ? { background: "var(--ink)", border: "1px solid var(--ink)", color: "#fff" }
+                  : { background: "var(--surface)", border: "1px solid var(--hair)" }
+              }
             >
-              {plan.recommended && (
-                <span className="self-start px-2.5 py-1 rounded-full bg-accent text-accent-ink text-[11px] font-extrabold mb-2.5">
-                  Recommended
+              {dark && (
+                <span className="self-start px-2.5 py-1 rounded-full bg-accent text-accent-ink text-[11px] font-extrabold tracking-[0.04em] mb-3">
+                  POPULAR
                 </span>
               )}
-              <p className="font-bold text-[17px] text-ink">{plan.name}</p>
-              <p className="text-[13px] font-medium text-muted">{BLURBS[key]}</p>
-              <p className="mt-3.5 mb-0.5">
-                <span className="font-disp font-extrabold text-[38px] text-ink tnum">${price}</span>
-                <span className="text-muted font-semibold">{interval === "yearly" ? "/yr" : "/mo"}</span>
+              <p className={`font-bold text-[13px] uppercase tracking-[0.06em] ${dark ? "text-white/70" : "text-muted"}`}>
+                {plan.name}
+              </p>
+              <p className="mt-2.5 mb-0.5">
+                <span className={`font-disp font-extrabold text-[38px] tnum ${dark ? "text-white" : "text-ink"}`}>
+                  ${price}
+                </span>
+                <span className={`font-semibold ${dark ? "text-white/60" : "text-muted"}`}>
+                  {interval === "yearly" ? "/yr" : "/mo"}
+                </span>
               </p>
               {interval === "yearly" && (
-                <p className="text-xs text-muted tnum mb-1">
+                <p className={`text-xs tnum mb-1 ${dark ? "text-white/60" : "text-muted"}`}>
                   (${yearlyMonthlyEquivalent(key).toFixed(2)}/mo billed yearly)
                 </p>
               )}
-              <div className="flex flex-col gap-2 my-3.5 mb-[18px]">
+              <p className={`text-[13px] font-medium ${dark ? "text-white/70" : "text-muted"}`}>
+                {BLURBS[key]}
+              </p>
+              <div className="flex flex-col gap-2 my-4 mb-[18px]">
                 {features.map((f) => (
-                  <span key={f} className="flex items-center gap-2 text-[13.5px] font-medium text-muted">
+                  <span
+                    key={f}
+                    className={`flex items-center gap-2 text-[13.5px] font-medium ${dark ? "text-white/80" : "text-muted"}`}
+                  >
                     <span className="text-win">
                       <CheckIcon size={15} strokeWidth={3} />
                     </span>
@@ -96,15 +115,26 @@ export function LandingPricing() {
                 ))}
               </div>
               <Link
-                href="/login"
-                className={`${plan.recommended ? "btn-primary" : "btn-secondary !bg-surface2"} mt-auto text-sm`}
+                href={`/login?plan=${key}&interval=${interval}`}
+                className={`${dark ? "btn-primary" : "btn-secondary !bg-surface2"} mt-auto text-sm`}
               >
-                Start free trial
+                Choose {plan.name}
               </Link>
+              <p className={`text-[11px] font-medium mt-2.5 text-center ${dark ? "text-white/60" : "text-muted"}`}>
+                Free for your first 2 invoices, then ${price}
+                {interval === "yearly" ? "/yr" : "/mo"} when you create a 3rd.
+              </p>
             </div>
           );
         })}
       </div>
+      <p className="text-[11px] font-medium text-muted text-center opacity-70 mt-5 max-w-[52ch] mx-auto">
+        No card required to sign up. Your first 2 invoices are completely free — full email
+        reminders included. Creating a 3rd invoice adds a card and starts the plan you picked
+        (or switch anytime in Settings). SMS beyond your included pack bills at{" "}
+        {smsOverageRateDisplay()}/text for US &amp; Canada numbers (international texts are
+        rated higher to cover carrier costs), added to your next invoice.
+      </p>
     </section>
   );
 }

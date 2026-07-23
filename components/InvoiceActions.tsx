@@ -9,7 +9,10 @@ import {
   resumeReminders,
   remindNow,
   armReminders,
+  setCustomSchedule,
 } from "@/app/actions/invoices";
+import { startSubscription } from "@/app/actions/billing";
+import { PLANS, formatPlanPrice, type BillingInterval, type PlanKey } from "@/lib/plans";
 import { CheckIcon } from "@/components/icons";
 
 const CONFETTI = [
@@ -35,6 +38,8 @@ export function InvoiceActions({
   amountStr,
   customerName,
   ownerFirstName,
+  canPayOnline,
+  upgrade,
 }: {
   invoiceId: string;
   status: string;
@@ -43,16 +48,61 @@ export function InvoiceActions({
   amountStr: string;
   customerName: string;
   ownerFirstName: string;
+  canPayOnline: boolean;
+  /** Set when this invoice is beyond the no-card free-tier cap and needs a card to arm — see
+   *  lib/trial.ts isFreeTierInvoiceBlocked and the invoice detail page. */
+  upgrade: { plan: PlanKey; interval: BillingInterval } | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [remindPending, startRemindTransition] = useTransition();
   const [toast, setToast] = useState<string | null>(null);
   const [confirmPaid, setConfirmPaid] = useState(false);
   const [celebrate, setCelebrate] = useState(false);
+  const [remindResults, setRemindResults] = useState<
+    { channel: "sms" | "email"; status: string; error?: string }[] | null
+  >(null);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [scheduleMode, setScheduleMode] = useState<"daily" | "weekly" | "monthly" | "date">("weekly");
+  const [scheduleDate, setScheduleDate] = useState("");
+  const [schedulePending, startScheduleTransition] = useTransition();
 
   function showToast(text: string) {
     setToast(text);
     setTimeout(() => setToast(null), 2600);
+  }
+
+  function saveSchedule() {
+    const fd = new FormData();
+    fd.set("mode", scheduleMode);
+    if (scheduleMode === "date") fd.set("date", scheduleDate);
+    startScheduleTransition(async () => {
+      const result = await setCustomSchedule(invoiceId, fd);
+      if (result?.error) {
+        showToast(result.error);
+        return;
+      }
+      showToast(
+        scheduleMode === "date"
+          ? "Reminder scheduled for that date"
+          : `Reminder scheduled to repeat ${scheduleMode}`
+      );
+      setScheduleOpen(false);
+      router.refresh();
+    });
+  }
+
+  function doRemindNow() {
+    setRemindResults(null);
+    startRemindTransition(async () => {
+      const result = await remindNow(invoiceId);
+      if (result?.error) {
+        showToast(result.error);
+        return;
+      }
+      setRemindResults(result?.results ?? []);
+      router.refresh();
+    });
   }
 
   function run(fn: () => Promise<{ error?: string; ok?: boolean; simulated?: boolean }>, okText: string) {
@@ -79,8 +129,27 @@ export function InvoiceActions({
 
   const isOpen = status === "outstanding" || status === "paused";
 
+  function doUpgrade() {
+    if (!upgrade) return;
+    run(async () => {
+      const fd = new FormData();
+      fd.set("plan", upgrade.plan);
+      fd.set("interval", upgrade.interval);
+      fd.set("successPath", `/invoices/${invoiceId}?upgraded=1`);
+      fd.set("cancelPath", `/invoices/${invoiceId}`);
+      return (await startSubscription(fd)) ?? {};
+    }, "");
+  }
+
   return (
     <div>
+      {isOpen && upgrade && (
+        <div className="mt-4 bg-accent-soft rounded-xl px-3.5 py-3 text-[13px] font-semibold text-accent-text">
+          You&rsquo;ve used your 2 free invoices. Add a card to arm this one — {PLANS[upgrade.plan].name}{" "}
+          plan, ${formatPlanPrice(upgrade.plan, upgrade.interval)}
+          {upgrade.interval === "yearly" ? "/yr" : "/mo"}.
+        </div>
+      )}
       {isOpen && (
         <div className="grid grid-cols-2 gap-2.5 mt-4">
           {!confirmPaid ? (
@@ -101,11 +170,11 @@ export function InvoiceActions({
             </button>
           )}
           <button
-            disabled={pending}
-            onClick={() => run(() => remindNow(invoiceId), `Reminder sent to ${customerName}`)}
+            disabled={pending || remindPending}
+            onClick={doRemindNow}
             className="btn-secondary text-sm"
           >
-            Remind now
+            {remindPending ? "Sending…" : "Remind now"}
           </button>
           {status === "outstanding" && sequenceState === "armed" ? (
             <button
@@ -115,13 +184,20 @@ export function InvoiceActions({
             >
               Pause reminders
             </button>
-          ) : status === "paused" ? (
+          ) : status === "paused" && sequenceState ? (
+            // only a previously-armed sequence that's now paused can be "resumed" — an invoice
+            // with no sequenceState yet (pending confirm, or blocked by the free-tier cap) needs
+            // a first-time arm instead, below
             <button
               disabled={pending}
               onClick={() => run(() => resumeReminders(invoiceId), "Reminders resumed")}
               className="btn-secondary text-sm"
             >
               Resume reminders
+            </button>
+          ) : upgrade ? (
+            <button disabled={pending} onClick={doUpgrade} className="btn-primary text-sm">
+              {pending ? "Opening checkout…" : "Add a card to unlock"}
             </button>
           ) : (
             <button
@@ -138,13 +214,94 @@ export function InvoiceActions({
           <button
             onClick={() => {
               navigator.clipboard.writeText(payLink);
-              showToast("Pay link copied");
+              showToast(
+                canPayOnline
+                  ? "Pay link copied — it's already included in every reminder"
+                  : "Pay link copied — connect Stripe in Settings to accept online payments"
+              );
             }}
             className="btn-secondary text-sm"
           >
             Copy pay link
           </button>
+          <button
+            onClick={() => setScheduleOpen((v) => !v)}
+            className="btn-secondary text-sm col-span-2"
+          >
+            {scheduleOpen ? "Hide schedule ▲" : "Custom schedule ▾"}
+          </button>
         </div>
+      )}
+      {isOpen && scheduleOpen && (
+        <div className="mt-2.5 card p-4" style={{ borderRadius: 16 }}>
+          <p className="text-[13px] font-bold text-ink mb-2.5">Repeat reminders</p>
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            {(["daily", "weekly", "monthly", "date"] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => setScheduleMode(m)}
+                className="text-sm !min-h-10 rounded-lg font-semibold"
+                style={{
+                  background: scheduleMode === m ? "var(--accent)" : "var(--surface2)",
+                  color: scheduleMode === m ? "var(--accent-ink)" : "var(--ink)",
+                }}
+              >
+                {m === "daily" ? "Every day" : m === "weekly" ? "Every week" : m === "monthly" ? "Every month" : "Specific date"}
+              </button>
+            ))}
+          </div>
+          {scheduleMode === "date" && (
+            <input
+              type="date"
+              value={scheduleDate}
+              onChange={(e) => setScheduleDate(e.target.value)}
+              className="field mb-3"
+            />
+          )}
+          <button
+            disabled={schedulePending}
+            onClick={saveSchedule}
+            className="btn-primary w-full text-sm"
+          >
+            {schedulePending ? "Saving…" : "Save schedule"}
+          </button>
+          <p className="text-xs font-medium text-muted mt-2 text-center">
+            Replaces the automatic reminder plan for this invoice with your custom schedule.
+          </p>
+        </div>
+      )}
+      {remindResults && remindResults.length > 0 && (
+        <div className="mt-3 flex flex-col gap-1.5">
+          {remindResults.map((r, i) => {
+            const ok = r.status === "sent" || r.status === "simulated";
+            return (
+              <div
+                key={i}
+                className="flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-[13px] font-semibold"
+                style={{
+                  background: ok ? "var(--win-soft)" : "var(--danger-soft)",
+                  color: ok ? "var(--win-ink)" : "var(--danger-ink)",
+                }}
+              >
+                <span>
+                  {r.channel === "sms" ? "SMS" : "Email"} —{" "}
+                  {r.status === "sent"
+                    ? "sent"
+                    : r.status === "simulated"
+                      ? "simulated (no send keys yet)"
+                      : `failed${r.error ? `: ${r.error}` : ""}`}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {isOpen && (
+        <p className="text-xs font-medium text-muted mt-2.5 text-center">
+          {canPayOnline
+            ? <>Every reminder — automatic or &ldquo;Remind now&rdquo; — already includes this pay link.</>
+            : <>This link shows your contact details until you connect Stripe in Settings to accept online payments.</>}
+        </p>
       )}
       {!isOpen && (
         <div className="grid grid-cols-1 gap-2.5 mt-4">

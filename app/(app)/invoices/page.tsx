@@ -123,7 +123,7 @@ export default async function InvoicesPage({
       </div>
 
       {params.welcome && (
-        <div className="card p-4 my-3 bg-accent-soft text-accent-ink text-sm font-semibold">
+        <div className="card p-4 my-3 bg-accent-soft text-accent-text text-sm font-semibold">
           Welcome 🎉 Add your first unpaid invoice and we&rsquo;ll take it from there.
         </div>
       )}
@@ -212,9 +212,12 @@ export default async function InvoicesPage({
               <Link
                 key={r.id}
                 href={`/invoices/${r.id}`}
-                className="flex items-center gap-3 px-4 py-3.5 border-b border-hair last:border-b-0 hover:bg-surface2 transition-colors"
+                className="flex items-center gap-3.5 px-4 py-3.5 border-b border-hair last:border-b-0 hover:bg-surface2 transition-colors"
                 style={r.display_status === "paid" ? { background: "var(--win-tint)" } : undefined}
               >
+                <span className="w-[42px] h-[42px] rounded-[11px] bg-surface2 grid place-items-center font-bold text-sm text-muted shrink-0">
+                  {initialsOf(r.customer?.name)}
+                </span>
                 <span className="flex-1 min-w-0">
                   <span className="block font-bold text-[15px] text-ink truncate">
                     {r.customer?.name ?? "—"}
@@ -279,6 +282,12 @@ function EmptyState({ tab, alias }: { tab: string; alias: string }) {
       </p>
     </div>
   );
+}
+
+function initialsOf(name: string | undefined): string {
+  if (!name) return "—";
+  const parts = name.trim().split(/\s+/);
+  return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "—";
 }
 
 function relativeTime(iso: string): string {

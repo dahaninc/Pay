@@ -8,6 +8,7 @@ const TONES: { key: Tone; label: string; blurb: string }[] = [
   { key: "friendly", label: "Friendly", blurb: "Warm and casual — good for regulars" },
   { key: "professional", label: "Professional", blurb: "Polite and direct — the safe default" },
   { key: "firm", label: "Firm", blurb: "No-nonsense — for chronic late payers" },
+  { key: "custom", label: "Custom", blurb: "Your own words — nothing gets auto-replaced" },
 ];
 
 export function TemplatesEditor({ sequence, tone }: { sequence: Sequence; tone: Tone }) {
@@ -17,17 +18,22 @@ export function TemplatesEditor({ sequence, tone }: { sequence: Sequence; tone: 
 
   function switchTone(next: Tone) {
     if (next === tone) return;
+    // Moving TO custom is non-destructive (it just stops future auto-resets), so no confirm.
+    // Moving to a written preset replaces all 5 messages with fresh copy in that tone.
     if (
-      !confirm(
-        `Switch all reminder copy to the ${next} tone? Any custom edits to messages will be replaced.`
-      )
+      next !== "custom" &&
+      !confirm(`Switch all reminder copy to the ${next} tone? Any custom edits will be replaced.`)
     )
       return;
     startTransition(async () => {
       const fd = new FormData();
       fd.set("tone", next);
       await updateTone(fd);
-      setNotice(`Tone switched to ${next} — all 5 messages updated.`);
+      setNotice(
+        next === "custom"
+          ? "Switched to Custom — edit any message below and it'll stay exactly as you write it."
+          : `Tone switched to ${next} — all 5 messages updated.`
+      );
     });
   }
 
@@ -39,46 +45,57 @@ export function TemplatesEditor({ sequence, tone }: { sequence: Sequence; tone: 
       const result = await updateSequenceStep(fd);
       if (result?.error) setNotice(result.error);
       else {
-        setNotice("Message saved ✓");
+        setNotice("Message saved ✓ — tone set to Custom so this wording won't get overwritten.");
         setEditing(null);
       }
     });
   }
 
   return (
-    <div className="space-y-6">
-      {/* tone dial */}
+    <div className="space-y-4">
+      {/* tone picker */}
       <div className="card p-5">
-        <h2 className="font-bold mb-3">Tone</h2>
-        <div className="grid grid-cols-3 gap-2">
+        <h2 className="font-bold text-ink mb-3">Tone</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {TONES.map((t) => (
             <button
               key={t.key}
               disabled={pending}
               onClick={() => switchTone(t.key)}
-              className={`rounded-xl border p-3 text-left ${
+              className="rounded-xl border p-3 text-left transition-colors"
+              style={
                 tone === t.key
-                  ? "border-brand-600 bg-brand-50 ring-1 ring-brand-600"
-                  : "border-gray-200 bg-white hover:bg-gray-50"
-              }`}
+                  ? { borderColor: "var(--accent)", background: "var(--accent-soft)" }
+                  : { borderColor: "var(--hair)", background: "var(--surface)" }
+              }
             >
-              <span className="font-semibold text-sm block">{t.label}</span>
-              <span className="text-xs text-ink-400 hidden sm:block mt-0.5">{t.blurb}</span>
+              <span className="font-bold text-sm block text-ink">{t.label}</span>
+              <span className="text-xs text-muted hidden sm:block mt-0.5">{t.blurb}</span>
             </button>
           ))}
         </div>
+        {tone === "custom" && (
+          <p className="text-xs font-medium text-muted mt-3">
+            You&rsquo;re on Custom — none of these 5 messages will ever be auto-replaced. Pick a
+            written tone above anytime to reset them to fresh, professionally-written copy.
+          </p>
+        )}
       </div>
 
-      {notice && <p className="text-sm bg-brand-50 text-brand-700 rounded-lg p-3">{notice}</p>}
+      {notice && (
+        <p className="text-sm font-semibold bg-accent-soft text-accent-text rounded-xl p-3.5">
+          {notice}
+        </p>
+      )}
 
-      {/* steps */}
+      {/* the 5 messages — always selectable to view, always editable */}
       <div className="space-y-3">
         {(sequence.steps as SequenceStep[]).map((step, i) => (
           <div key={i} className="card p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="font-semibold text-sm">{step.label}</span>
-                <span className="text-xs text-ink-400 ml-2">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <span className="font-bold text-sm text-ink">{step.label}</span>
+                <span className="text-xs text-muted ml-2">
                   {step.offset_days < 0
                     ? `${-step.offset_days}d before due`
                     : step.offset_days === 0
@@ -88,7 +105,7 @@ export function TemplatesEditor({ sequence, tone }: { sequence: Sequence; tone: 
                 </span>
               </div>
               <button
-                className="text-sm font-medium text-brand-700 underline"
+                className="text-sm font-bold text-accent-text underline shrink-0"
                 onClick={() => setEditing(editing === i ? null : i)}
               >
                 {editing === i ? "Close" : "Edit"}
@@ -117,7 +134,7 @@ export function TemplatesEditor({ sequence, tone }: { sequence: Sequence; tone: 
                     rows={step.channel === "sms" ? 4 : 8}
                     className="field font-mono text-sm"
                   />
-                  <p className="text-xs text-ink-400 mt-1.5">
+                  <p className="text-xs text-muted mt-1.5">
                     Merge tags: {"{first_name} {amount} {invoice_no} {days_overdue} {due_date} {pay_link} {business_name}"}
                   </p>
                 </div>
@@ -126,7 +143,7 @@ export function TemplatesEditor({ sequence, tone }: { sequence: Sequence; tone: 
                 </button>
               </form>
             ) : (
-              <p className="text-sm text-ink-600 mt-2 whitespace-pre-line line-clamp-3">
+              <p className="text-sm text-muted mt-2 whitespace-pre-line line-clamp-3">
                 {step.body}
               </p>
             )}

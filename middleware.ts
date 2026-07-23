@@ -9,6 +9,8 @@ const PUBLIC_PATHS = [
   "/api",
   "/_next",
   "/favicon.ico",
+  "/terms",
+  "/privacy",
 ];
 
 export async function middleware(request: NextRequest) {
@@ -44,6 +46,35 @@ export async function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
+  }
+
+  // First-touch signup attribution: when a visitor arrives with UTM params or from an
+  // external referrer, remember it for 30 days; createBusiness stores it on signup.
+  // First touch wins — never overwritten by later visits.
+  if (!request.cookies.get("pp_attr") && !pathname.startsWith("/api")) {
+    const params = request.nextUrl.searchParams;
+    const referer = request.headers.get("referer");
+    let externalRef: string | null = null;
+    try {
+      if (referer && new URL(referer).host !== request.nextUrl.host) externalRef = referer;
+    } catch {
+      // unparseable referer — ignore
+    }
+    const hasUtm = ["utm_source", "utm_medium", "utm_campaign"].some((k) => params.get(k));
+    if (hasUtm || externalRef) {
+      response.cookies.set(
+        "pp_attr",
+        JSON.stringify({
+          utm_source: params.get("utm_source"),
+          utm_medium: params.get("utm_medium"),
+          utm_campaign: params.get("utm_campaign"),
+          referrer: externalRef,
+          landing: pathname,
+          at: new Date().toISOString(),
+        }),
+        { maxAge: 60 * 60 * 24 * 30, sameSite: "lax", httpOnly: true, path: "/" }
+      );
+    }
   }
 
   return response;

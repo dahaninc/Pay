@@ -35,6 +35,19 @@ export function createAdminSupabase(): SupabaseClient | null {
   });
 }
 
+/**
+ * Platform-staff check by verified session email (admin_users is service-role-only, so this
+ * uses the admin client). Lives here rather than lib/admin.ts to avoid an import cycle —
+ * lib/admin.ts imports from this file.
+ */
+export async function isAdminUser(email: string | undefined): Promise<boolean> {
+  if (!email) return false;
+  const admin = createAdminSupabase();
+  if (!admin) return false;
+  const { data } = await admin.from("admin_users").select("id").ilike("email", email).maybeSingle();
+  return !!data;
+}
+
 /** Current user + their business, redirecting to /login or /onboarding as needed. */
 export async function requireBusiness() {
   const supabase = await createServerSupabase();
@@ -68,6 +81,9 @@ export async function requireBusiness() {
         .single();
       if (b) return { supabase, user, business: b as Business };
     }
+    // Platform staff aren't customers: an admin with no business belongs on the admin
+    // dashboard, not in client onboarding (where they'd accidentally start a real trial).
+    if (await isAdminUser(user.email)) redirect("/admin");
     redirect("/onboarding");
   }
 

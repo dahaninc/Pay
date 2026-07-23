@@ -60,7 +60,7 @@ export function CsvImport() {
   const [preview, setPreview] = useState<Row[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<{ created: number; errors: string[] } | null>(null);
+  const [result, setResult] = useState<{ created: number; errors: string[]; upgradeRequired: number } | null>(null);
 
   function loadFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -85,7 +85,7 @@ export function CsvImport() {
     const res = await importInvoices(preview);
     setResult(res);
     setBusy(false);
-    if (res.created > 0 && res.errors.length === 0) {
+    if (res.created > 0 && res.errors.length === 0 && res.upgradeRequired === 0) {
       setTimeout(() => router.push("/invoices"), 1200);
     }
   }
@@ -96,6 +96,14 @@ export function CsvImport() {
         <h2 className="font-bold text-lg">
           {result.created} {result.created === 1 ? "invoice" : "invoices"} imported ✓
         </h2>
+        {result.upgradeRequired > 0 && (
+          <p className="mt-3 text-sm text-amber-800 bg-amber-50 rounded-lg p-3">
+            {result.upgradeRequired} {result.upgradeRequired === 1 ? "invoice was" : "invoices were"}{" "}
+            created but {result.upgradeRequired === 1 ? "needs" : "need"} a card to start
+            reminders — you&rsquo;ve used your 2 free invoices. Open one to add a card and
+            unlock it.
+          </p>
+        )}
         {result.errors.length > 0 && (
           <ul className="mt-3 text-sm text-red-700 bg-red-50 rounded-lg p-3 space-y-1">
             {result.errors.map((e, i) => (

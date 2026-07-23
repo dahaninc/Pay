@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { createClient } from "@supabase/supabase-js";
 import { formatMoney, formatDate } from "@/lib/money";
 import { PayButton } from "@/components/PayButton";
@@ -103,8 +104,20 @@ export default async function PayPage({
         )}
       </div>
 
-      <p className="text-center text-xs text-ink-400 mt-5">
-        Reminders powered by PayPigeon · payments go directly to {invoice.business_name}
+      <p className="flex items-center justify-center gap-1.5 text-center text-xs text-ink-400 mt-5">
+        <Image src="/logo-mark.png" alt="" width={14} height={14} aria-hidden />
+        <span>
+          Reminders powered by{" "}
+          <a
+            href="https://paypigeon.io/?utm_source=paypigeon&utm_medium=pay_page&utm_campaign=powered_by"
+            className="font-semibold underline hover:text-ink-600"
+            target="_blank"
+            rel="noopener"
+          >
+            PayPigeon
+          </a>{" "}
+          — get your invoices paid on autopilot · payments go directly to {invoice.business_name}
+        </span>
       </p>
     </Shell>
   );

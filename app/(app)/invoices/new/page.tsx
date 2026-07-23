@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { requireBusiness } from "@/lib/supabase/server";
+import { aiExtractionCapReached } from "@/lib/extractionCap";
 import { NewInvoiceForm } from "@/components/NewInvoiceForm";
 import { ScanUpload } from "@/components/ScanUpload";
 import { CsvImport } from "@/components/CsvImport";
 import { CopyButton } from "@/components/CopyButton";
 import { BRAND, BRAND_TLD } from "@/lib/brand";
-import { currencySymbol } from "@/lib/money";
 
 const TABS = [
   { key: "type", label: "Type it" },
@@ -19,10 +19,12 @@ export default async function NewInvoicePage({
 }: {
   searchParams: Promise<{ tab?: string }>;
 }) {
-  const { business } = await requireBusiness();
+  const { supabase, business } = await requireBusiness();
   const tab = (await searchParams).tab ?? "type";
-  const symbol = currencySymbol(business.currency);
   const forwardAddr = `bills+${business.inbound_alias}@${BRAND_TLD}`;
+  // Hidden infra guardrail, checked server-side so the scan tab flips to its soft fallback
+  // without ever calling /api/extract (see lib/extractionCap.ts — never user-visible as a number)
+  const scanUnavailable = tab === "snap" && (await aiExtractionCapReached(supabase, business));
 
   return (
     <div className="max-w-[520px] mx-auto pt-3">
@@ -48,15 +50,17 @@ export default async function NewInvoicePage({
       {tab === "type" && (
         <div>
           <div className="card p-5 sm:p-6">
-            <NewInvoiceForm currencySymbol={symbol} />
+            <NewInvoiceForm defaultCurrency={business.currency} />
           </div>
           <p className="text-[12.5px] font-medium text-muted text-center mt-3.5">
-            Reminders send only 9am–8pm local · never Sundays.
+            From here, {BRAND} follows up for you — professional, well-timed reminders until it&rsquo;s paid.
           </p>
         </div>
       )}
 
-      {tab === "snap" && <ScanUpload currencySymbol={symbol} />}
+      {tab === "snap" && (
+        <ScanUpload defaultCurrency={business.currency} scanUnavailable={scanUnavailable} />
+      )}
 
       {tab === "forward" && (
         <div className="card p-[22px] text-center">
@@ -65,7 +69,7 @@ export default async function NewInvoicePage({
             Send any invoice to your private {BRAND} address. We&rsquo;ll read it and send you a
             one-tap confirm card. Reminders stay off until you confirm.
           </p>
-          <p className="mt-4 bg-surface2 border border-hair rounded-xl px-3.5 py-[13px] font-disp font-bold text-sm text-accent-ink break-all select-all">
+          <p className="mt-4 bg-surface2 border border-hair rounded-xl px-3.5 py-[13px] font-disp font-bold text-sm text-accent-text break-all select-all">
             {forwardAddr}
           </p>
           <CopyButton text={forwardAddr} label="Copy address" />

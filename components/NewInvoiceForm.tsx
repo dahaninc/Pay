@@ -5,13 +5,14 @@ import { useRouter } from "next/navigation";
 import { createInvoice } from "@/app/actions/invoices";
 import type { ExtractedInvoice } from "@/lib/extraction";
 import { EmailListInput } from "@/components/EmailListInput";
+import { CURRENCIES } from "@/lib/money";
 
 export function NewInvoiceForm({
-  currencySymbol,
+  defaultCurrency,
   prefill,
   source = "manual",
 }: {
-  currencySymbol: string;
+  defaultCurrency: string;
   prefill?: Partial<ExtractedInvoice>;
   source?: string;
 }) {
@@ -61,16 +62,30 @@ export function NewInvoiceForm({
           <label className="label" htmlFor="amount">
             Amount
           </label>
-          <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-400">
-              {currencySymbol}
-            </span>
+          <div className="flex gap-2">
+            <select
+              id="currency"
+              name="currency"
+              aria-label="Currency"
+              defaultValue={
+                prefill?.currency && CURRENCIES.some((c) => c.code === prefill.currency)
+                  ? prefill.currency
+                  : defaultCurrency
+              }
+              className="field !w-[104px] shrink-0 !px-2.5 tnum"
+            >
+              {CURRENCIES.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.code} {c.symbol}
+                </option>
+              ))}
+            </select>
             <input
               id="amount"
               name="amount"
               required
               inputMode="decimal"
-              className={`field !pl-9 tnum ${lowConfidence("amount") ? "border-amber-400 bg-amber-50" : ""}`}
+              className={`field flex-1 min-w-0 tnum ${lowConfidence("amount") ? "border-amber-400 bg-amber-50" : ""}`}
               placeholder="840.00"
               defaultValue={prefill?.amount ?? ""}
             />
@@ -101,7 +116,7 @@ export function NewInvoiceForm({
           type="tel"
           className={`field ${lowConfidence("phone") ? "border-amber-400 bg-amber-50" : ""}`}
           placeholder="+1 555 000 1234"
-          defaultValue={prefill?.phone ?? ""}
+          defaultValue={prefill?.phone || "+"}
         />
       </div>
 

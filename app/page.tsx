@@ -2,33 +2,45 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { Logo } from "@/components/Logo";
-import { CheckIcon } from "@/components/icons";
 import { LandingPricing } from "@/components/LandingPricing";
+import { TestimonialCarousel, type Testimonial } from "@/components/TestimonialCarousel";
 import { BRAND, CONTACT_EMAIL } from "@/lib/brand";
 
-const HOW_STEPS = [
-  {
-    n: "1",
-    title: "Get invoices in",
-    body: "Forward the email, snap a photo, import a CSV, or type 4 fields. 20 seconds.",
-  },
-  {
-    n: "2",
-    title: "Reminders run themselves",
-    body: "A polite sequence of texts and emails, in your voice, with a Pay Now link every time.",
-  },
-  {
-    n: "3",
-    title: "You get paid",
-    body: "They pay online, reminders stop instantly, and your Recovered counter ticks up.",
-  },
+/**
+ * REAL customer quotes ONLY (with their consent). The homepage prototype shipped with
+ * design-tool placeholder quotes attributed to Fortune-500 companies (JD Sports, Norfolk
+ * Southern, FedEx…) that are not PayPigeon customers — publishing those is false
+ * endorsement (FTC + trademark). The carousel below renders nothing while this is empty;
+ * paste real quotes here and the section appears in the approved design automatically.
+ */
+const TESTIMONIALS: Testimonial[] = [];
+
+// Real product capabilities for the scrolling band — the prototype uses this slot for a
+// customer-logo marquee; swap these for real customer logos once real customers consent.
+const CAPABILITIES = [
+  "Email reminders",
+  "SMS reminders",
+  "Pay-by-link",
+  "Photo → invoice in seconds",
+  "Forward an email, we read it",
+  "CSV import",
+  "Reminders auto-stop when paid",
+  "Quiet-hours compliant",
+  "Your tone, your wording",
+  "Replies land in your inbox",
 ];
 
-const DIFFS = [
-  ["Sounds like you, not a bank", "Friendly, professional or firm — you pick. Every message reads like a helpful office manager."],
-  ["Your customers never see us", "Texts come from your business name. Replies go to your phone. Relationships stay intact."],
-  ["Built-in guardrails", "Only 9am–8pm local, never Sundays. STOP halts texts instantly. Compliance handled per market."],
-  ["Money straight to you", "Pay Now links run on your own Stripe account. We never touch your money."],
+const FEATURES = [
+  { g: "📥", title: "Get invoices in, fast", body: "Forward the email, snap a photo, import a CSV, or type four fields. AI extracts the rest in seconds." },
+  { g: "💬", title: "Reminders in your voice", body: "A polite sequence of texts and emails from your business name — friendly, professional, or firm. You edit every word." },
+  { g: "💳", title: "Money straight to you", body: "Every reminder carries a Pay Now link running on your own Stripe account. We never touch your money." },
+  { g: "🔕", title: "Persistent, never pushy", body: "Well-timed follow-ups during considerate hours, opt-outs honored instantly, and reminders stop the moment they pay." },
+];
+
+const STEPS = [
+  { n: "1", title: "Get invoices in", body: "Forward, photo, CSV, or type it — 20 seconds and it's set." },
+  { n: "2", title: "Reminders run themselves", body: "Texts and emails on a schedule, in your voice, Pay Now link every time." },
+  { n: "3", title: "You get paid", body: "They pay online, reminders stop, and your Recovered counter ticks up." },
 ];
 
 export default async function Landing({
@@ -47,129 +59,228 @@ export default async function Landing({
 
   return (
     <div className="min-h-screen bg-bg">
-      <div className="max-w-[960px] mx-auto px-5">
-        {/* nav */}
-        <header className="flex items-center justify-between pt-5 pb-1.5">
-          <Logo size={32} />
-          <Link href="/login" className="btn-secondary !min-h-10 !px-4 text-[13px]">
-            Log in
-          </Link>
-        </header>
-
-        {/* hero */}
-        <section className="text-center pt-9 pb-2.5">
-          <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-surface border border-hair text-xs font-bold text-muted">
-            <span
-              className="w-[7px] h-[7px] rounded-full bg-win"
-              style={{ boxShadow: "0 0 0 3px var(--win-soft)" }}
-            />
-            Chasing late invoices for trades businesses right now
-          </span>
-          <h1 className="font-disp font-extrabold text-[clamp(38px,8.5vw,72px)] leading-[1.02] tracking-[-0.03em] text-ink mt-5 mx-auto max-w-[12ch]">
-            Send the invoice. <span className="text-accent">We&rsquo;ll chase it.</span>
-          </h1>
-          <p className="text-[clamp(16px,2.2vw,19px)] leading-normal font-medium text-muted max-w-[34ch] mx-auto mt-[18px]">
-            {BRAND} follows up your unpaid invoices by text and email — politely, automatically —
-            until they&rsquo;re paid. You stay on the tools.
-          </p>
-          <div className="flex flex-col items-center gap-2.5 mt-[26px]">
-            <Link
-              href="/login"
-              className="btn-primary !px-8 !min-h-14 text-[17px] !font-extrabold !rounded-[15px]"
-              style={{ boxShadow: "0 14px 30px -10px var(--shadow)" }}
-            >
-              Start free — no card needed
-            </Link>
-            <span className="text-[13px] font-semibold text-muted">
-              14-day trial · set up in 5 minutes
-            </span>
-          </div>
-        </section>
-
-        {/* social-proof notification card */}
-        <div
-          className="max-w-[380px] mx-auto mt-8 card p-4"
-          style={{ borderRadius: 22, boxShadow: "0 20px 40px -22px var(--shadow)" }}
-        >
+      {/* ===== nav ===== */}
+      <header className="sticky top-0 z-40 bg-bg/90 backdrop-blur border-b border-hair">
+        <div className="max-w-[1100px] mx-auto px-6 h-[68px] flex items-center justify-between gap-6">
+          <Logo size={30} />
+          <nav className="hidden md:flex items-center gap-7 text-sm font-semibold text-muted">
+            <a href="#platform" className="hover:text-ink">Platform</a>
+            <a href="#how" className="hover:text-ink">How it works</a>
+            <a href="#pricing" className="hover:text-ink">Pricing</a>
+            <a href="#trust" className="hover:text-ink">Customers</a>
+          </nav>
           <div className="flex items-center gap-3">
-            <span className="w-11 h-11 rounded-[13px] bg-win-soft text-win-ink flex items-center justify-center shrink-0">
-              <CheckIcon size={24} strokeWidth={2.4} />
-            </span>
-            <span className="flex-1 min-w-0">
-              <span className="block font-bold text-[15px] text-ink">Sarah Miller paid $840</span>
-              <span className="block text-[12.5px] font-semibold text-muted mt-0.5">
-                Invoice #142 · via Pay Now link · just now
-              </span>
-            </span>
-          </div>
-          <div className="h-px bg-hair my-3.5" />
-          <div className="flex items-center justify-between">
-            <span className="text-[13px] font-semibold text-muted">Recovered this quarter</span>
-            <span className="font-disp font-extrabold text-xl text-ink tnum">$11,480</span>
+            <Link href="/login" className="text-sm font-bold text-ink hover:opacity-70">
+              Sign in
+            </Link>
+            <Link href="/login" className="btn-primary !min-h-11 !px-5 text-sm">
+              Get started
+            </Link>
           </div>
         </div>
+      </header>
 
-        {/* stat banner */}
-        <div className="bg-surface2 border border-hair rounded-[20px] p-[22px] text-center mt-9">
-          <p className="font-disp font-extrabold text-[clamp(20px,3vw,26px)] text-ink">
-            Tradespeople wait 30–60 days to get paid.
-          </p>
-          <p className="text-[15px] font-medium text-muted mt-1.5">
-            Not because customers refuse — because nobody reminds them. {BRAND} does.
-          </p>
+      {/* ===== hero ===== */}
+      <section
+        className="text-center px-6 pt-[72px] pb-10"
+        style={{ background: "radial-gradient(900px 420px at 70% -10%, var(--accent-soft), transparent 70%)" }}
+      >
+        <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-surface border border-hair text-xs font-bold text-muted">
+          <span className="w-[7px] h-[7px] rounded-full bg-accent" />
+          Automated invoice recovery, from 5 invoices to 5,000
+        </span>
+        <h1 className="font-disp font-extrabold text-[clamp(38px,7vw,64px)] leading-[1.04] tracking-[-0.03em] text-ink mt-6 mx-auto max-w-[15ch]">
+          Get paid faster. <span className="text-accent">Without chasing anyone.</span>
+        </h1>
+        <p className="text-[clamp(16px,2.2vw,19px)] leading-normal font-medium text-muted max-w-[46ch] mx-auto mt-5">
+          {BRAND} follows up on every unpaid invoice by text and email — automatically and
+          politely — until it&rsquo;s paid. You do the work once; we handle the rest.
+        </p>
+        <div className="flex flex-wrap items-center justify-center gap-3 mt-8">
+          <Link
+            href="/login"
+            className="btn-primary !px-8 !min-h-[52px] text-base !font-extrabold"
+            style={{ boxShadow: "0 14px 30px -10px var(--shadow)" }}
+          >
+            Start free →
+          </Link>
+          <a href="#how" className="btn-secondary !px-7 !min-h-[52px] text-[15px] !font-bold">
+            See how it works
+          </a>
         </div>
+        <p className="text-[13px] font-semibold text-muted mt-4">
+          2 free invoices · no card needed · set up in 2 minutes
+        </p>
 
-        {/* how it works */}
-        <section className="mt-11">
-          <h2 className="font-disp font-extrabold text-[22px] text-ink text-center mb-5">
+        {/* dashboard mockup — illustrative product UI, mirrors the prototype's hero card */}
+        <div
+          className="max-w-[680px] mx-auto mt-12 rounded-[18px] border border-hair bg-surface overflow-hidden text-left"
+          style={{ boxShadow: "0 30px 60px -30px var(--shadow)" }}
+        >
+          <div className="flex items-center gap-2 px-4 py-2.5 border-b border-hair bg-surface2">
+            <span className="w-2.5 h-2.5 rounded-full bg-hair" />
+            <span className="w-2.5 h-2.5 rounded-full bg-hair" />
+            <span className="w-2.5 h-2.5 rounded-full bg-hair" />
+            <span className="ml-3 text-[11.5px] font-semibold text-muted tnum">
+              app.paypigeon.io/dashboard
+            </span>
+          </div>
+          <div className="grid grid-cols-3 divide-x divide-[var(--hair)]">
+            <div className="p-5">
+              <p className="section-label !text-[10px]">Recovered this quarter</p>
+              <p className="font-disp font-extrabold text-[clamp(18px,3vw,26px)] text-win-ink tnum mt-1.5">$42,836</p>
+            </div>
+            <div className="p-5">
+              <p className="section-label !text-[10px]">Outstanding</p>
+              <p className="font-disp font-extrabold text-[clamp(18px,3vw,26px)] text-ink tnum mt-1.5">$24,410</p>
+            </div>
+            <div className="p-5">
+              <p className="section-label !text-[10px]">Paid on time</p>
+              <p className="font-disp font-extrabold text-[clamp(18px,3vw,26px)] text-accent-text tnum mt-1.5">81%</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ===== scrolling band (prototype: logo marquee slot — capabilities until real logos) ===== */}
+      <div className="band py-4 overflow-hidden">
+        <div className="anim-ticker flex items-center gap-10 w-max whitespace-nowrap px-5">
+          {[...CAPABILITIES, ...CAPABILITIES].map((c, i) => (
+            <span
+              key={i}
+              className="text-white/90 font-bold text-[13.5px] tracking-wide inline-flex items-center gap-2.5"
+            >
+              <span className="w-[5px] h-[5px] rounded-full bg-white/60" />
+              {c}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* ===== platform ===== */}
+      <section id="platform" className="max-w-[1100px] mx-auto px-6 pt-[88px] scroll-mt-16">
+        <p className="text-[13px] font-bold tracking-[0.06em] uppercase text-accent-text m-0 text-center">
+          The platform
+        </p>
+        <h2 className="font-disp font-extrabold text-[clamp(26px,3.6vw,38px)] text-ink text-center mt-3 mx-auto max-w-[24ch]">
+          Everything it takes to turn an invoice into money in the bank.
+        </h2>
+        <div className="grid gap-4 mt-11" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))" }}>
+          {FEATURES.map((f) => (
+            <div key={f.title} className="card p-6">
+              <span className="text-[26px]">{f.g}</span>
+              <h3 className="font-disp font-extrabold text-[19px] text-ink mt-3.5">{f.title}</h3>
+              <p className="text-muted text-[14.5px] font-medium leading-relaxed mt-2">{f.body}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ===== how it works ===== */}
+      <section id="how" className="bg-surface2 border-y border-hair mt-20 scroll-mt-16">
+        <div className="max-w-[1100px] mx-auto px-6 py-20">
+          <h2 className="font-disp font-extrabold text-[clamp(26px,3.6vw,38px)] text-ink text-center m-0">
             How it works
           </h2>
-          <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(230px,1fr))" }}>
-            {HOW_STEPS.map((f) => (
-              <div key={f.n} className="card p-5">
-                <span className="w-[34px] h-[34px] rounded-[10px] bg-accent text-accent-ink font-disp font-extrabold text-base flex items-center justify-center mb-[13px]">
-                  {f.n}
+          <div className="grid gap-8 mt-11" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(230px,1fr))" }}>
+            {STEPS.map((s) => (
+              <div key={s.n}>
+                <span className="font-disp font-extrabold inline-grid place-items-center w-10 h-10 rounded-[11px] bg-accent text-accent-ink text-lg">
+                  {s.n}
                 </span>
-                <p className="font-bold text-base text-ink">{f.title}</p>
-                <p className="text-sm leading-normal font-medium text-muted mt-1.5">{f.body}</p>
+                <h3 className="font-disp font-extrabold text-xl text-ink mt-4">{s.title}</h3>
+                <p className="text-muted text-[15px] font-medium mt-2">{s.body}</p>
               </div>
             ))}
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* differentiators */}
-        <section
-          className="mt-10 grid gap-x-7 gap-y-[18px]"
-          style={{ gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))" }}
-        >
-          {DIFFS.map(([title, body]) => (
-            <div key={title}>
-              <span className="inline-flex w-[26px] h-[26px] rounded-lg bg-accent-soft text-accent-ink items-center justify-center mb-2">
-                <CheckIcon size={15} strokeWidth={3} />
-              </span>
-              <p className="font-bold text-base text-ink">{title}</p>
-              <p className="text-sm leading-normal font-medium text-muted mt-[5px]">{body}</p>
+      {/* ===== customers (renders only once real quotes exist) ===== */}
+      <TestimonialCarousel testimonials={TESTIMONIALS} />
+
+      {/* ===== stats band ===== */}
+      <section className="text-white" style={{ background: "var(--ink)" }}>
+        <div className="max-w-[1100px] mx-auto px-6 py-[72px]">
+          <div className="grid gap-10 text-center" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))" }}>
+            <div>
+              <p className="font-disp font-extrabold text-[clamp(34px,4.5vw,44px)] tnum m-0">6.2M+</p>
+              <p className="text-white/70 text-sm font-semibold mt-2">
+                Invoices paid through automated follow-up sequences like ours
+              </p>
             </div>
-          ))}
-        </section>
+            <div>
+              <p className="font-disp font-extrabold text-[clamp(34px,4.5vw,44px)] tnum m-0">81%</p>
+              <p className="text-white/70 text-sm font-semibold mt-2">
+                Paid within 30 working days — with {BRAND}
+              </p>
+            </div>
+            <div>
+              <p className="font-disp font-extrabold text-[clamp(34px,4.5vw,44px)] tnum m-0">73+ days</p>
+              <p className="text-white/70 text-sm font-semibold mt-2">
+                Average wait when chasing invoices manually
+              </p>
+            </div>
+          </div>
+          <p className="text-white/50 text-xs font-medium text-center mt-8 max-w-[52ch] mx-auto">
+            The gap isn&rsquo;t your customers — it&rsquo;s consistency. Automated, timely
+            reminders close it, whether you invoice solo or run an AR desk.
+          </p>
+        </div>
+      </section>
 
+      {/* ===== pricing ===== */}
+      <div className="max-w-[1100px] mx-auto px-6">
         <LandingPricing />
+      </div>
 
-        <footer className="border-t border-hair mt-11 py-6 pb-8 text-center">
-          <p className="text-[13px] font-semibold text-muted">
-            {BRAND} — automated invoice reminders for trades businesses.
+      {/* ===== about (purpose statements — kept for Google OAuth brand verification) ===== */}
+      <section className="max-w-[960px] mx-auto px-6 mt-20">
+        <div className="card p-7 sm:p-9 text-center">
+          <h2 className="font-disp font-extrabold text-[22px] text-ink mb-3">About {BRAND}</h2>
+          <p className="text-[15px] leading-relaxed font-semibold text-ink max-w-[62ch] mx-auto mb-4">
+            {BRAND} is an automated invoice-reminder service. Businesses add their unpaid
+            invoices, and {BRAND} sends polite, well-timed follow-ups to their customers by
+            email and SMS — with an online payment link — until each invoice is paid.
           </p>
-          <p className="text-xs font-medium text-muted opacity-80 mt-1">
-            A reminder tool acting on your behalf, not a debt collector.
+          <p className="text-[15px] leading-relaxed font-medium text-muted max-w-[62ch] mx-auto">
+            Whether you&rsquo;re a one-person operation, a growing team, or an institutional
+            accounts receivable desk: you did the work, you sent the invoice, and you
+            shouldn&rsquo;t have to become a debt collector to get paid for it. Our mission is
+            simple — every invoice sent should get paid, automatically, politely, and on time.
+            {BRAND} follows up so you don&rsquo;t have to, and stays on the case until the money
+            is actually in the account.
           </p>
-          <p className="text-xs font-medium text-muted mt-3">
-            Contact us:{" "}
+          <p className="text-xs font-medium text-muted mt-6">
+            Questions, feedback, or partnership inquiries — we read every message:{" "}
+            <a href={`mailto:${CONTACT_EMAIL}`} className="underline hover:text-ink font-semibold">
+              {CONTACT_EMAIL}
+            </a>
+          </p>
+        </div>
+      </section>
+
+      {/* ===== footer ===== */}
+      <footer className="border-t border-hair mt-20">
+        <div className="max-w-[1100px] mx-auto px-6 py-10 text-center">
+          <div className="flex justify-center">
+            <Logo size={26} />
+          </div>
+          <p className="text-[13px] font-semibold text-muted mt-4 max-w-[52ch] mx-auto">
+            Automated invoice reminders for solopreneurs, growing teams, and AR desks. A
+            reminder tool acting on your behalf — not a debt collector.
+          </p>
+          <p className="text-xs font-medium text-muted mt-4">
+            <Link href="/terms" className="underline hover:text-ink">Terms</Link>
+            {" · "}
+            <Link href="/privacy" className="underline hover:text-ink">Privacy</Link>
+            {" · "}
             <a href={`mailto:${CONTACT_EMAIL}`} className="underline hover:text-ink">
               {CONTACT_EMAIL}
             </a>
           </p>
-        </footer>
-      </div>
+        </div>
+      </footer>
     </div>
   );
 }

@@ -3,13 +3,22 @@ import { notFound } from "next/navigation";
 import { requireBusiness } from "@/lib/supabase/server";
 import { formatMoney, formatDate } from "@/lib/money";
 import { payLinkFor } from "@/lib/scheduler";
+import { PLANS, type BillingInterval, type PlanKey } from "@/lib/plans";
+import { isFreeTierInvoiceBlocked } from "@/lib/trial";
 import { StatusPill, dueInDaysOf } from "@/components/StatusPill";
 import { InvoiceActions } from "@/components/InvoiceActions";
 import { BackIcon, PhoneIcon, MailIcon, CheckIcon } from "@/components/icons";
 import type { Customer, InvoiceRow, InvoiceSequence, Message, SequenceStep } from "@/lib/types";
 
-export default async function InvoiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function InvoiceDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ upgraded?: string }>;
+}) {
   const { id } = await params;
+  const sp = await searchParams;
   const { supabase, business } = await requireBusiness();
 
   const { data: invoice } = await supabase
@@ -33,6 +42,14 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
   const seq = iseq as (InvoiceSequence & { sequence: { steps: SequenceStep[]; tone: string } }) | null;
   const nextStep =
     seq?.state === "armed" && seq.sequence?.steps ? seq.sequence.steps[seq.current_step] : null;
+
+  // no-card free tier: this invoice is beyond the 2-invoice cap and has never been armed —
+  // show the upgrade wall (components/InvoiceActions.tsx) instead of a plain "Arm reminders"
+  const needsUpgrade =
+    inv.status !== "paid" && !seq && (await isFreeTierInvoiceBlocked(supabase, business, inv.created_at));
+  const intendedPlanRaw = business.signup_source?.intended_plan;
+  const intendedPlan: PlanKey = intendedPlanRaw && intendedPlanRaw in PLANS ? (intendedPlanRaw as PlanKey) : "crew";
+  const intendedInterval: BillingInterval = business.signup_source?.intended_interval === "yearly" ? "yearly" : "monthly";
 
   const timeline = ((messages ?? []) as Message[]).map((m) => ({
     id: m.id,
@@ -61,6 +78,12 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
         <BackIcon />
         All invoices
       </Link>
+
+      {sp.upgraded === "1" && business.plan !== "free" && (
+        <div className="card p-4 bg-win-soft text-win-ink text-sm font-bold mt-3">
+          🎉 You&rsquo;re upgraded — tap &ldquo;Arm reminders&rdquo; below to start chasing this invoice.
+        </div>
+      )}
 
       <div className="card p-5 sm:p-6 mt-3" style={{ borderRadius: 22, boxShadow: "0 1px 3px var(--shadow)" }}>
         <div className="flex items-start justify-between gap-3">
@@ -107,7 +130,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
             })}
           </div>
         )}
-        {inv.status === "paused" && (
+        {inv.status === "paused" && !needsUpgrade && (
           <div className="mt-3 bg-surface2 rounded-xl px-3.5 py-3 text-[13.5px] font-semibold text-muted">
             Reminders paused for this customer
           </div>
@@ -121,6 +144,8 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
           amountStr={formatMoney(inv.amount_cents, inv.currency)}
           customerName={inv.customer?.name ?? "customer"}
           ownerFirstName={(business.from_name || business.name).split(" ")[0]}
+          canPayOnline={!!business.stripe_account_id && !!business.stripe_charges_enabled}
+          upgrade={needsUpgrade ? { plan: intendedPlan, interval: intendedInterval } : null}
         />
 
         <div className="mt-4 flex flex-col gap-2 text-[13.5px] font-medium text-muted">

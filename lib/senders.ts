@@ -18,6 +18,7 @@ export async function sendEmail(opts: {
   html: string;
   replyTo?: string | null;
   fromName?: string | null;
+  bcc?: string | null;
 }): Promise<SendResult> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return { status: "simulated" };
@@ -31,6 +32,7 @@ export async function sendEmail(opts: {
       subject: opts.subject,
       html: opts.html,
       replyTo: opts.replyTo || undefined,
+      bcc: opts.bcc || undefined,
     });
     if (error) return { status: "failed", error: error.message };
     return { status: "sent", providerId: data?.id };
@@ -39,11 +41,52 @@ export async function sendEmail(opts: {
   }
 }
 
-/** SMS via Telnyx (https://developers.telnyx.com/docs/messaging/messages/send-a-message). */
+/** True for US/CA E.164 numbers (+1...) — the only countries our domestic long code can send to. */
+export function isDomesticSms(phone: string): boolean {
+  return phone.startsWith("+1");
+}
+
+/**
+ * Normalizes a customer-entered phone number toward E.164 (the only format Telnyx accepts).
+ * Handles the "00" international-dialing prefix (e.g. "0044...") some customers use instead
+ * of "+", and strips spaces/dashes/parens. Numbers already starting with "+" pass through
+ * with only whitespace stripped. Not a full E.164 validator — just clears the most common
+ * cause of outright rejected sends.
+ */
+export function normalizePhone(phone: string): string {
+  const trimmed = phone.trim();
+  if (trimmed.startsWith("+")) return "+" + trimmed.slice(1).replace(/[\s\-()]/g, "");
+  const digitsOnly = trimmed.replace(/[\s\-()]/g, "");
+  if (digitsOnly.startsWith("00")) return "+" + digitsOnly.slice(2);
+  return trimmed;
+}
+
+/**
+ * Reads a phone field from form input: trims, normalizes, and treats a bare "+"
+ * (left over from the input's pre-filled placeholder when a user submits without
+ * typing a number) the same as empty. Returns null for "no phone given."
+ */
+export function cleanPhoneInput(raw: FormDataEntryValue | null): string | null {
+  const trimmed = String(raw ?? "").trim();
+  if (!trimmed || trimmed === "+") return null;
+  return normalizePhone(trimmed);
+}
+
+/**
+ * SMS via Telnyx (https://developers.telnyx.com/docs/messaging/messages/send-a-message).
+ * Domestic (+1) sends use the long-code number + domestic messaging profile. International
+ * sends use the Alphanumeric Sender ID + international messaging profile instead — alpha
+ * senders can't receive replies at all, so this only ever applies to outbound.
+ */
 export async function sendSms(opts: { to: string; body: string }): Promise<SendResult> {
   const apiKey = process.env.TELNYX_API_KEY;
-  const from = process.env.TELNYX_FROM_NUMBER;
-  const messagingProfileId = process.env.TELNYX_MESSAGING_PROFILE_ID;
+  const domestic = isDomesticSms(opts.to);
+  const from = domestic
+    ? process.env.TELNYX_FROM_NUMBER
+    : process.env.TELNYX_ALPHA_SENDER || process.env.TELNYX_FROM_NUMBER;
+  const messagingProfileId = domestic
+    ? process.env.TELNYX_MESSAGING_PROFILE_ID
+    : process.env.TELNYX_INTL_MESSAGING_PROFILE_ID || process.env.TELNYX_MESSAGING_PROFILE_ID;
   if (!apiKey || !from) return { status: "simulated" };
 
   try {

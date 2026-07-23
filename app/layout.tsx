@@ -18,7 +18,7 @@ const hanken = Hanken_Grotesk({
 export const metadata: Metadata = {
   title: `${BRAND} — Send the invoice. We'll chase it.`,
   description:
-    "Automated invoice reminders for trades businesses. SMS + email follow-ups with a Pay Now link, until you're paid.",
+    "Automated invoice reminders for solopreneurs, growing teams, and institutional accounts receivable. SMS + email follow-ups with a Pay Now link, until you're paid.",
 };
 
 export const viewport: Viewport = {

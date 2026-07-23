@@ -1,8 +1,31 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { startSubscription, connectStripe } from "@/app/actions/billing";
-import { PLANS, YEARLY_DISCOUNT_PCT, formatPlanPrice, yearlyMonthlyEquivalent, type BillingInterval } from "@/lib/plans";
+import { startSubscription, connectStripe, openBillingPortal, openCancelFlow } from "@/app/actions/billing";
+import { PLANS, YEARLY_DISCOUNT_PCT, formatPlanPrice, yearlyMonthlyEquivalent, smsOverageRateDisplay, type BillingInterval } from "@/lib/plans";
+
+export function ManageBillingButton() {
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  return (
+    <div>
+      <button
+        disabled={pending}
+        className="btn-secondary !bg-surface2 text-sm"
+        onClick={() =>
+          startTransition(async () => {
+            const result = await openBillingPortal();
+            if (result?.error) setError(result.error);
+          })
+        }
+      >
+        Manage billing / cancel
+      </button>
+      {error && <p className="mt-2 text-xs text-muted">{error}</p>}
+    </div>
+  );
+}
 
 export function PlanPicker({ currentPlan }: { currentPlan: string }) {
   const [pending, startTransition] = useTransition();
@@ -69,10 +92,8 @@ export function PlanPicker({ currentPlan }: { currentPlan: string }) {
                 </p>
               )}
               <p className="text-xs text-ink-600 mt-1">
-                {plan.invoicesPerMonth === Infinity
-                  ? "Unlimited invoices"
-                  : `${plan.invoicesPerMonth} invoices/mo`}{" "}
-                · {plan.sms} SMS
+                {plan.invoicesPerMonth.toLocaleString("en-US")} invoices/mo ·{" "}
+                {plan.sms.toLocaleString("en-US")} SMS, then {smsOverageRateDisplay()}/SMS
               </p>
               {active ? (
                 <p className="text-sm font-semibold text-brand-700 mt-3">Current plan ✓</p>
@@ -98,6 +119,31 @@ export function PlanPicker({ currentPlan }: { currentPlan: string }) {
         })}
       </div>
       {error && <p className="mt-3 text-sm text-amber-800 bg-amber-50 rounded-lg p-3">{error}</p>}
+    </div>
+  );
+}
+
+/** The un-hidden "no thanks, cancel" action on the retention screen — one click straight
+ *  into Stripe's own cancel confirmation, nothing gating it. */
+export function CancelFlowButton() {
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  return (
+    <div>
+      <button
+        disabled={pending}
+        className="text-sm font-semibold text-muted underline hover:text-ink"
+        onClick={() =>
+          startTransition(async () => {
+            const result = await openCancelFlow();
+            if (result?.error) setError(result.error);
+          })
+        }
+      >
+        {pending ? "Opening…" : "No thanks, cancel my plan"}
+      </button>
+      {error && <p className="mt-2 text-xs text-muted">{error}</p>}
     </div>
   );
 }

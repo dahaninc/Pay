@@ -3,10 +3,13 @@ import { requireBusiness } from "@/lib/supabase/server";
 import { updateBusiness } from "@/app/actions/business";
 import { refreshStripeStatus } from "@/app/actions/billing";
 import { signOut } from "@/app/actions/auth";
-import { PlanPicker, ConnectStripeButton } from "@/components/BillingButtons";
+import { PlanPicker, ConnectStripeButton, ManageBillingButton } from "@/components/BillingButtons";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { AllowSundayToggle } from "@/components/AllowSundayToggle";
+import { QuietHoursEditor } from "@/components/QuietHoursEditor";
+import { RedeemCodeForm } from "@/components/RedeemCodeForm";
 import { ChevronRightIcon, ClockIcon } from "@/components/icons";
-import { trialDaysLeft } from "@/lib/plans";
+import { trialDaysLeft, isStripeTrialing, stripeTrialDaysLeft, LTD_TIERS, LTD_MAX_STACK, APPSUMO_ENABLED } from "@/lib/plans";
 import { CURRENCIES } from "@/lib/money";
 import { BRAND, BRAND_TLD } from "@/lib/brand";
 
@@ -75,7 +78,7 @@ export default async function SettingsPage({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">Business phone</label>
-              <input name="phone" type="tel" defaultValue={business.phone ?? ""} className="field" />
+              <input name="phone" type="tel" defaultValue={business.phone || "+"} className="field" />
             </div>
             <div>
               <label className="label">Currency</label>
@@ -123,14 +126,30 @@ export default async function SettingsPage({
             <span className="text-win-ink">
               <ClockIcon />
             </span>
-            <p className="font-bold text-sm text-ink">
-              Quiet hours: {business.quiet_start}:00am – {business.quiet_end - 12}:00pm · never
-              Sundays
-            </p>
+            <p className="font-bold text-sm text-ink">Quiet hours</p>
           </div>
-          <p className="text-[12.5px] font-medium text-muted mt-1.5 pl-7">
-            Built-in and can&rsquo;t be loosened — keeps you compliant in every market.
+          <p className="text-[12.5px] font-medium text-muted mt-1.5 pl-7 mb-3">
+            8:00am–9:00pm is the suggested standard. Pick your own window anywhere within
+            7:00am–10:00pm — that outer range can&rsquo;t be widened further, it&rsquo;s what
+            keeps automated texts compliant in every market.
           </p>
+          <div className="pl-7">
+            <QuietHoursEditor
+              initialStart={business.quiet_start}
+              initialEnd={business.quiet_end}
+              initialSendHour={business.preferred_send_hour}
+            />
+          </div>
+          <div className="flex items-center justify-between mt-3.5 pt-3.5 border-t border-hair">
+            <span>
+              <span className="block text-sm font-bold text-ink">Allow Sunday sends</span>
+              <span className="block text-[12.5px] font-medium text-muted mt-0.5 max-w-[380px]">
+                Recommended off for most Western markets — but you know your customers. Turn on
+                if Sunday is a normal business day where you operate (e.g. parts of Asia/Africa).
+              </span>
+            </span>
+            <AllowSundayToggle initialValue={business.allow_sunday} />
+          </div>
         </div>
       </div>
 
@@ -156,7 +175,7 @@ export default async function SettingsPage({
           <p className="text-[13.5px] font-medium text-muted mb-3">
             Forward invoice emails here — {BRAND} reads them, you confirm 4 fields.
           </p>
-          <p className="bg-surface2 border border-hair rounded-xl px-3.5 py-3 font-disp font-bold text-sm text-accent-ink break-all select-all">
+          <p className="bg-surface2 border border-hair rounded-xl px-3.5 py-3 font-disp font-bold text-sm text-accent-text break-all select-all">
             bills+{business.inbound_alias}@{BRAND_TLD}
           </p>
         </div>
@@ -170,19 +189,44 @@ export default async function SettingsPage({
           style={{ background: "var(--accent-soft)" }}
         >
           <p className="font-bold text-[15px] text-ink">
-            {business.plan === "trial"
-              ? `Free trial — ${trialDaysLeft(business)} days left`
-              : business.plan === "expired"
-                ? "Your trial has ended"
-                : `You're on the ${business.plan} plan`}
+            {business.plan === "lifetime"
+              ? `Lifetime access — ${LTD_TIERS[Math.max(1, Math.min(business.lifetime_tier, LTD_MAX_STACK)) as 1 | 2 | 3].name}`
+              : isStripeTrialing(business)
+                ? `Free trial — ${stripeTrialDaysLeft(business)} days left`
+                : business.plan === "trial"
+                  ? `Free trial — ${trialDaysLeft(business)} days left`
+                  : business.plan === "free"
+                    ? "Free plan — no card yet"
+                    : business.plan === "expired"
+                      ? "Your trial has ended"
+                      : `You're on the ${business.plan} plan`}
           </p>
           <p className="text-[12.5px] font-medium text-muted mt-0.5">
-            {business.plan === "trial" || business.plan === "expired"
-              ? "Pick a plan below · cancel anytime"
-              : "Manage or change your plan below"}
+            {business.plan === "lifetime"
+              ? APPSUMO_ENABLED
+                ? "No subscription — stack another AppSumo code below to upgrade"
+                : "Lifetime access — no subscription needed"
+              : business.plan === "free"
+                ? "Your first 2 invoices are free — pick a plan below anytime, or we'll ask when you create a 3rd"
+                : isStripeTrialing(business) || business.plan === "trial" || business.plan === "expired"
+                  ? "Pick a plan below · cancel anytime"
+                  : "Manage or change your plan below"}
           </p>
         </div>
-        <PlanPicker currentPlan={business.plan} />
+        {business.plan !== "lifetime" && <PlanPicker currentPlan={business.plan} />}
+        {business.stripe_customer_id && (
+          <div className="mt-3 flex items-center gap-4">
+            <ManageBillingButton />
+            {business.stripe_subscription_id && (
+              <Link href="/settings/cancel" className="text-sm font-semibold text-muted underline hover:text-ink">
+                Cancel plan
+              </Link>
+            )}
+          </div>
+        )}
+        {APPSUMO_ENABLED && (
+          <RedeemCodeForm lifetimeTier={business.lifetime_tier} maxStack={LTD_MAX_STACK} />
+        )}
       </div>
 
       <form action={signOut} className="pt-1 pb-3">

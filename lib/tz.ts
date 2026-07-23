@@ -50,25 +50,36 @@ export function localParts(tz: string, date: Date = new Date()) {
 }
 
 /**
- * Compliance window: only send 9:00–20:00 recipient-local, never Sunday.
- * Returns `date` if inside the window, else the next allowed send instant (10:00 local).
+ * Compliance window: send only within the business's own quiet-hours range, recipient-local.
+ * The range itself is bounded 7:00am–10:00pm everywhere (a legal floor/ceiling for automated
+ * SMS/email hours across markets — TCPA-style rules) — the standard suggested default is
+ * 8:00am–9:00pm, but each business can pick their own window inside 7–22 (see
+ * components/QuietHoursEditor.tsx). Skipping Sunday is the recommended default (matches most
+ * Western markets) but not forced — allowSunday lets a business opt in for markets where Sunday
+ * is a normal business day (much of the Middle East, parts of Asia/Africa) or where they simply
+ * know their customers best.
+ * Returns `date` if inside the window, else the next allowed send instant (falls back to the
+ * business's preferred send hour, clamped into the window, when rolling to the next day).
  */
 export function nextAllowedSendTime(
   date: Date,
   tz: string,
-  quietStart = 9,
-  quietEnd = 20
+  quietStart = 8,
+  quietEnd = 21,
+  allowSunday = false,
+  fallbackHour?: number
 ): Date {
+  const rollHour = Math.min(Math.max(fallbackHour ?? quietStart + 2, quietStart), quietEnd - 1);
   let candidate = new Date(date);
   for (let i = 0; i < 8; i++) {
     const { hour, weekday, dateStr } = localParts(tz, candidate);
-    if (weekday !== "Sun" && hour >= quietStart && hour < quietEnd) return candidate;
-    // move to 10:00 local — today if we're before the window, otherwise tomorrow
-    const todayAt10 = zonedTimeToUtc(dateStr, 10, tz);
+    if ((allowSunday || weekday !== "Sun") && hour >= quietStart && hour < quietEnd) return candidate;
+    // move to the roll-forward hour local — today if we're before the window, otherwise tomorrow
+    const todayAtRoll = zonedTimeToUtc(dateStr, rollHour, tz);
     candidate =
-      todayAt10 > candidate
-        ? todayAt10
-        : new Date(zonedTimeToUtc(dateStr, 10, tz).getTime() + 24 * 3600 * 1000);
+      todayAtRoll > candidate
+        ? todayAtRoll
+        : new Date(zonedTimeToUtc(dateStr, rollHour, tz).getTime() + 24 * 3600 * 1000);
   }
   return candidate;
 }

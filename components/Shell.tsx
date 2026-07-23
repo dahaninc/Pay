@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Logo } from "@/components/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { InvoiceIcon, ChartIcon, PlusIcon, SettingsIcon } from "@/components/icons";
+import { InvoiceIcon, ChartIcon, PlusIcon, SettingsIcon, CardIcon } from "@/components/icons";
 
 const NAV = [
   { href: "/invoices", label: "Invoices", icon: InvoiceIcon },
@@ -37,10 +37,12 @@ export function Sidebar({
   businessName,
   planLine,
   showPickPlan,
+  stripeConnected,
 }: {
   businessName: string;
   planLine: string;
   showPickPlan: boolean;
+  stripeConnected: boolean;
 }) {
   const pathname = usePathname();
   return (
@@ -52,12 +54,35 @@ export function Sidebar({
       </div>
       {NAV.map(({ href, label, icon: Icon }) => {
         const active = isActive(pathname, href);
+        if (href === "/settings") {
+          return (
+            <span key="settings-group">
+              <Link
+                href="/settings#payments"
+                className="flex items-center gap-3 w-full rounded-xl px-3.5 py-[11px] mb-1 text-sm font-bold transition-colors text-muted hover:bg-surface2"
+              >
+                <CardIcon size={20} />
+                {stripeConnected ? "Stripe account" : "Connect Stripe account"}
+              </Link>
+              <Link
+                key={href}
+                href={href}
+                className={`flex items-center gap-3 w-full rounded-xl px-3.5 py-[11px] mb-1 text-sm font-bold transition-colors ${
+                  active ? "bg-accent-soft text-accent-text" : "text-muted hover:bg-surface2"
+                }`}
+              >
+                <Icon size={20} />
+                {label}
+              </Link>
+            </span>
+          );
+        }
         return (
           <Link
             key={href}
             href={href}
             className={`flex items-center gap-3 w-full rounded-xl px-3.5 py-[11px] mb-1 text-sm font-bold transition-colors ${
-              active ? "bg-accent-soft text-accent-ink" : "text-muted hover:bg-surface2"
+              active ? "bg-accent-soft text-accent-text" : "text-muted hover:bg-surface2"
             }`}
           >
             <Icon size={20} />
@@ -117,7 +142,7 @@ export function BottomNav() {
                 >
                   <PlusIcon size={24} strokeWidth={2.6} />
                 </span>
-                <span className={`text-[10.5px] font-bold ${active ? "text-accent-ink" : "text-muted"}`}>
+                <span className={`text-[10.5px] font-bold ${active ? "text-accent-text" : "text-muted"}`}>
                   Add
                 </span>
               </Link>

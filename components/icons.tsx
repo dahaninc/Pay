@@ -51,6 +51,16 @@ export function SettingsIcon({ size = 20 }: { size?: number }) {
   );
 }
 
+export function CardIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...base} strokeWidth="1.9">
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="M3 10h18" />
+      <path d="M7 14.5h4" />
+    </svg>
+  );
+}
+
 export function CheckIcon({ size = 18, strokeWidth = 2.6 }: { size?: number; strokeWidth?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" {...base} strokeWidth={strokeWidth}>

@@ -9,11 +9,14 @@ import type {
 } from "@/lib/types";
 import { formatMoney, formatDate } from "@/lib/money";
 import { nextAllowedSendTime, zonedTimeToUtc, addDays, daysOverdue } from "@/lib/tz";
-import { renderTemplate, emailHtml, linkifyPayLink, type MergeContext } from "@/lib/templates";
+import { renderTemplate, emailHtml, linkifyPayLink, finalizeSms, type MergeContext } from "@/lib/templates";
 import { sendEmail, sendSms } from "@/lib/senders";
 import { canSend } from "@/lib/plans";
+import { replyToFor } from "@/lib/brand";
+import { notifyOwnerFailedSend } from "@/lib/notify";
+import { recordSmsUsage } from "@/lib/smsUsage";
 
-const SEND_HOUR = 10; // local time reminders aim for
+const DEFAULT_SEND_HOUR = 10; // fallback if a business row somehow lacks preferred_send_hour
 
 export function appUrl(): string {
   return process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
@@ -23,10 +26,15 @@ export function payLinkFor(invoice: Pick<Invoice, "pay_token">): string {
   return `${appUrl()}/pay/${invoice.pay_token}`;
 }
 
-/** UTC instant a step should fire for a given invoice. */
-export function stepSendTime(step: SequenceStep, dueAt: string, tz: string): Date {
+/**
+ * UTC instant a step should fire for a given invoice. Every step in a sequence aims for the
+ * SAME local clock time each day (the business's `preferred_send_hour`, editable in Settings —
+ * see components/QuietHoursEditor.tsx) — reminders escalate in tone and channel, not in what
+ * hour they land at.
+ */
+export function stepSendTime(step: SequenceStep, dueAt: string, tz: string, sendHour = DEFAULT_SEND_HOUR): Date {
   const date = addDays(dueAt, step.offset_days);
-  return zonedTimeToUtc(date, SEND_HOUR, tz);
+  return zonedTimeToUtc(date, sendHour, tz);
 }
 
 /**
@@ -37,15 +45,20 @@ export function armingPlan(
   steps: SequenceStep[],
   dueAt: string,
   tz: string,
-  now = new Date()
+  now = new Date(),
+  allowSunday = false,
+  quietStart?: number,
+  quietEnd?: number,
+  sendHour?: number
 ): { stepIndex: number; nextRunAt: Date } {
   for (let i = 0; i < steps.length; i++) {
-    const t = stepSendTime(steps[i], dueAt, tz);
-    if (t > now) return { stepIndex: i, nextRunAt: nextAllowedSendTime(t, tz) };
+    const t = stepSendTime(steps[i], dueAt, tz, sendHour);
+    if (t > now)
+      return { stepIndex: i, nextRunAt: nextAllowedSendTime(t, tz, quietStart, quietEnd, allowSunday, sendHour) };
   }
   return {
     stepIndex: steps.length - 1,
-    nextRunAt: nextAllowedSendTime(now, tz),
+    nextRunAt: nextAllowedSendTime(now, tz, quietStart, quietEnd, allowSunday, sendHour),
   };
 }
 
@@ -131,8 +144,8 @@ async function processOne(
     return { invoiceId: inv.id, action: "deferred", detail: "subscription inactive" };
   }
 
-  // quiet hours / Sunday → defer to next allowed window
-  const allowed = nextAllowedSendTime(now, biz.timezone, biz.quiet_start, biz.quiet_end);
+  // quiet hours / Sunday (unless the business opted in to Sunday sends) → defer to next allowed window
+  const allowed = nextAllowedSendTime(now, biz.timezone, biz.quiet_start, biz.quiet_end, biz.allow_sunday);
   if (allowed.getTime() > now.getTime() + 60000) {
     await db
       .from("invoice_sequences")
@@ -160,30 +173,39 @@ async function processOne(
     return { invoiceId: inv.id, action: "skipped", detail: "customer missing" };
   const cust = customer as Customer;
 
-  // channel resolution with opt-out + missing-contact fallbacks
+  // channel resolution with opt-out + missing-contact fallbacks — no-card free-tier businesses
+  // are email-only (cost control), treated the same as any other "SMS unavailable" reason: fall
+  // back to email, or skip the step entirely if there's no email either (never simulate an SMS
+  // send just because a free-tier business has no send keys)
   let channel = step.channel;
-  if (channel === "sms" && (!cust.phone || cust.sms_opted_out || !cust.sms_consent)) {
+  if (channel === "sms" && (!cust.phone || cust.sms_opted_out || !cust.sms_consent || biz.plan === "free")) {
     channel = "email";
   }
   if (channel === "email" && (!cust.email || cust.email_opted_out)) {
-    channel = cust.phone && !cust.sms_opted_out && cust.sms_consent ? "sms" : channel;
+    channel = biz.plan !== "free" && cust.phone && !cust.sms_opted_out && cust.sms_consent ? "sms" : channel;
   }
   const hasDestination =
     channel === "sms" ? !!cust.phone : !!cust.email && !cust.email_opted_out;
 
   const emailRecipients = [cust.email, ...(cust.extra_emails ?? [])].filter(Boolean) as string[];
-  const idempotencyKey = `${iseq.id}:${iseq.current_step}`;
+  // custom-repeat sequences reuse the same current_step every cycle (see advance()), so the key
+  // must also carry next_run_at — otherwise every repeat after the first collides as a duplicate.
+  const idempotencyKey = iseq.custom_repeat_days
+    ? `${iseq.id}:${iseq.current_step}:${iseq.next_run_at}`
+    : `${iseq.id}:${iseq.current_step}`;
   const ctx = mergeContext(biz, cust, inv);
   let body = renderTemplate(step.body, ctx);
   const subject = step.subject ? renderTemplate(step.subject, ctx) : undefined;
 
-  // per-market SMS opt-out language
+  // brand-level SMS layout: on-behalf-of signature + correctly-keyed opt-out, each on its
+  // own line — applied at send time so user-edited templates can't lose either (see
+  // finalizeSms in lib/templates.ts for the domestic/international opt-out reasoning).
   if (channel === "sms") {
-    if (["US", "CA"].includes(biz.country)) {
-      if (!/reply stop/i.test(body)) body += " Reply STOP to opt out.";
-    } else {
-      body += ` Opt out: ${appUrl()}/pay/${inv.pay_token}?optout=sms`;
-    }
+    body = finalizeSms(body, {
+      businessName: ctx.business_name,
+      customerPhone: cust.phone ?? "",
+      optOutUrl: `${appUrl()}/pay/${inv.pay_token}?optout=sms`,
+    });
   }
 
   if (!hasDestination) {
@@ -220,9 +242,10 @@ async function processOne(
       : await sendEmail({
           to: emailRecipients,
           subject: subject || `Invoice ${inv.number} from ${ctx.business_name}`,
-          html: linkifyPayLink(emailHtml(body, ctx.business_name), ctx.pay_link),
-          replyTo: biz.reply_to_email,
+          html: linkifyPayLink(emailHtml(body, ctx.business_name, biz.phone), ctx.pay_link),
+          replyTo: replyToFor(inv.id),
           fromName: ctx.business_name,
+          bcc: biz.reply_to_email,
         });
 
   await db
@@ -243,6 +266,32 @@ async function processOne(
     data: { step: iseq.current_step, channel, label: step.label },
   });
 
+  // SMS pack metering: real sends only (never simulated/failed), counts derived from the
+  // messages log, overage billed to Stripe, 80%/100% owner notifications. Never throws.
+  if (channel === "sms" && result.status === "sent") {
+    await recordSmsUsage({
+      db,
+      business: biz,
+      customerPhone: cust.phone!,
+      messageIdempotencyKey: idempotencyKey,
+    });
+  }
+
+  // A failed scheduled send is invisible to the owner unless we say something — they
+  // aren't in the app when cron fires. notifyOwnerFailedSend dedups per invoice+channel
+  // and never throws.
+  if (result.status === "failed") {
+    await notifyOwnerFailedSend({
+      db,
+      business: biz,
+      invoice: inv,
+      customer: cust,
+      channel,
+      reason: result.error,
+      invoiceUrl: `${appUrl()}/invoices/${inv.id}`,
+    });
+  }
+
   await advance(db, iseq, steps, inv, biz, now);
   return {
     invoiceId: inv.id,
@@ -261,17 +310,28 @@ async function advance(
 ) {
   const nextIndex = iseq.current_step + 1;
   if (nextIndex >= steps.length) {
+    if (iseq.custom_repeat_days) {
+      // custom recurring schedule (daily/weekly/monthly): keep resending the same last step's
+      // content on the chosen cadence, indefinitely, instead of completing.
+      let nextRun = new Date(now.getTime() + iseq.custom_repeat_days * 24 * 3600 * 1000);
+      nextRun = nextAllowedSendTime(nextRun, biz.timezone, biz.quiet_start, biz.quiet_end, biz.allow_sunday);
+      await db
+        .from("invoice_sequences")
+        .update({ next_run_at: nextRun.toISOString() })
+        .eq("id", iseq.id);
+      return;
+    }
     await db
       .from("invoice_sequences")
       .update({ state: "completed", current_step: nextIndex, next_run_at: null })
       .eq("id", iseq.id);
     return;
   }
-  let nextRun = stepSendTime(steps[nextIndex], inv.due_at, biz.timezone);
+  let nextRun = stepSendTime(steps[nextIndex], inv.due_at, biz.timezone, biz.preferred_send_hour);
   // never fire more than one step per invoice per 24h (catch-up guard)
   const floor = new Date(now.getTime() + 24 * 3600 * 1000);
   if (nextRun < floor) nextRun = floor;
-  nextRun = nextAllowedSendTime(nextRun, biz.timezone, biz.quiet_start, biz.quiet_end);
+  nextRun = nextAllowedSendTime(nextRun, biz.timezone, biz.quiet_start, biz.quiet_end, biz.allow_sunday);
 
   await db
     .from("invoice_sequences")
@@ -296,7 +356,11 @@ export async function resumeSequence(
   db: SupabaseClient,
   invoiceId: string,
   dueAt: string,
-  tz: string
+  tz: string,
+  allowSunday = false,
+  quietStart?: number,
+  quietEnd?: number,
+  sendHour?: number
 ) {
   const { data: iseq } = await db
     .from("invoice_sequences")
@@ -305,7 +369,7 @@ export async function resumeSequence(
     .single();
   if (!iseq) return;
   const steps = (iseq.sequence as { steps: SequenceStep[] }).steps;
-  const plan = armingPlan(steps, dueAt, tz);
+  const plan = armingPlan(steps, dueAt, tz, new Date(), allowSunday, quietStart, quietEnd, sendHour);
   await db
     .from("invoice_sequences")
     .update({

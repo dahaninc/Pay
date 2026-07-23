@@ -91,11 +91,21 @@ export async function POST(request: NextRequest) {
       if (businessId) {
         const active = ["active", "trialing"].includes(sub.status);
         const plan = (sub.metadata?.plan as string) || "solo";
+        // Billing-period anchor for SMS pack metering (lib/smsUsage.ts). On the 2026 API the
+        // period lives on the subscription ITEM; older webhook API versions had it on the
+        // subscription itself — accept either so a legacy-pinned destination still works.
+        const periodStart =
+          sub.items?.data?.[0]?.current_period_start ??
+          (sub as unknown as { current_period_start?: number }).current_period_start ??
+          null;
         await db
           .from("businesses")
           .update({
             plan: active ? plan : "expired",
             stripe_subscription_id: sub.id,
+            stripe_subscription_status: sub.status,
+            stripe_trial_end: sub.trial_end ? new Date(sub.trial_end * 1000).toISOString() : null,
+            stripe_current_period_start: periodStart ? new Date(periodStart * 1000).toISOString() : null,
           })
           .eq("id", businessId);
       }
@@ -105,7 +115,17 @@ export async function POST(request: NextRequest) {
       const sub = event.data.object;
       const businessId = sub.metadata?.business_id;
       if (businessId) {
-        await db.from("businesses").update({ plan: "expired" }).eq("id", businessId);
+        await db
+          .from("businesses")
+          .update({ plan: "expired", stripe_subscription_status: "canceled" })
+          .eq("id", businessId);
+        // Timestamped so the admin dashboard can compute churn going forward — there's
+        // no historical record of cancellations before this line shipped.
+        await db.from("events").insert({
+          business_id: businessId,
+          type: "subscription_canceled",
+          data: { plan: sub.metadata?.plan ?? null },
+        });
       }
       break;
     }

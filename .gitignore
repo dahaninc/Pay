@@ -36,6 +36,14 @@ yarn-error.log*
 # vercel
 .vercel
 
+# generated AppSumo code batches — real redeemable codes, never commit
+appsumo-codes-*.csv
+
+# real customer data export, scratch/reference files — never commit
+paypigeon-businesses-*.csv
+*.zip
+PayPigeon Brand (standalone).html
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

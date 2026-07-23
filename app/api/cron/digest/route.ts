@@ -11,7 +11,7 @@ export const maxDuration = 300;
 /** Money Monday digest — the dashboard comes to the user's inbox. */
 export async function GET(request: NextRequest) {
   const auth = request.headers.get("authorization");
-  if (process.env.CRON_SECRET && auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   const db = createAdminSupabase();
@@ -44,6 +44,18 @@ export async function GET(request: NextRequest) {
       )
       .join("");
 
+    const { count: failedCount } = await db
+      .from("messages")
+      .select("id", { count: "exact", head: true })
+      .eq("business_id", biz.id)
+      .eq("direction", "outbound")
+      .eq("status", "failed")
+      .gte("created_at", new Date(Date.now() - 7 * 86400000).toISOString());
+    const failedLine =
+      failedCount && failedCount > 0
+        ? `<p style="background:#fef3f2;border-radius:8px;padding:10px 12px;color:#b42318;font-size:13px;font-weight:600;margin:14px 0 0;">⚠️ ${failedCount} reminder${failedCount === 1 ? "" : "s"} couldn't be delivered this week — <a href="${appUrl()}/invoices" style="color:#b42318;">check contact details</a>.</p>`
+        : "";
+
     const html = `<!doctype html><html><body style="margin:0;background:#f6f7f9;padding:24px 0;">
 <div style="max-width:560px;margin:0 auto;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#1a1d21;">
   <div style="background:#fff;border:1px solid #e5e8eb;border-radius:12px;padding:28px;">
@@ -61,6 +73,7 @@ export async function GET(request: NextRequest) {
       </tr>
     </table>
     ${lateList ? `<p style="font-weight:600;margin:16px 0 4px;">Biggest overdue invoices</p><table style="border-collapse:collapse;font-size:14px;">${lateList}</table>` : `<p>No overdue invoices right now. Nice one.</p>`}
+    ${failedLine}
     <p style="margin-top:22px;"><a href="${appUrl()}/dashboard" style="display:inline-block;background:#1f7a4d;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;font-weight:600;">Open your dashboard</a></p>
   </div>
   <p style="text-align:center;color:#9aa1a9;font-size:12px;margin-top:14px;">PayPigeon — send the invoice, we'll chase it.</p>

@@ -1,7 +1,7 @@
-export type Tone = "friendly" | "professional" | "firm";
+export type Tone = "friendly" | "professional" | "firm" | "custom";
 export type Channel = "email" | "sms";
 export type Country = "US" | "UK" | "CA" | "AU";
-export type Plan = "trial" | "solo" | "crew" | "pro" | "expired";
+export type Plan = "trial" | "free" | "solo" | "crew" | "pro" | "expired" | "lifetime";
 
 export interface Business {
   id: string;
@@ -12,14 +12,32 @@ export interface Business {
   timezone: string;
   quiet_start: number;
   quiet_end: number;
+  preferred_send_hour: number;
+  allow_sunday: boolean;
   tone: Tone;
   reply_to_email: string | null;
   from_name: string | null;
   phone: string | null;
   plan: Plan;
+  lifetime_tier: number;
+  signup_source: {
+    utm_source?: string | null;
+    utm_medium?: string | null;
+    utm_campaign?: string | null;
+    referrer?: string | null;
+    landing?: string | null;
+    at?: string;
+    // which plan/interval the user picked before landing on the no-card signup flow — used to
+    // pre-select the right Stripe price when they upgrade at invoice #3 (see lib/trial.ts)
+    intended_plan?: string | null;
+    intended_interval?: string | null;
+  } | null;
   trial_ends_at: string;
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
+  stripe_subscription_status: string | null;
+  stripe_trial_end: string | null;
+  stripe_current_period_start: string | null;
   stripe_account_id: string | null;
   stripe_charges_enabled: boolean;
   inbound_alias: string;
@@ -93,6 +111,7 @@ export interface InvoiceSequence {
   state: "armed" | "paused" | "completed" | "stopped";
   current_step: number;
   next_run_at: string | null;
+  custom_repeat_days: number | null;
 }
 
 export interface Message {
