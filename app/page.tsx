@@ -19,6 +19,8 @@ const TESTIMONIALS: Testimonial[] = [];
 // real company names/logos here would be a false "trusted by" claim (see the fabricated
 // marketing claims hard rule). Swap for real customer logos once real customers consent.
 const TRUSTED_BY_PLACEHOLDERS = ["Brand 1", "Brand 2", "Brand 3"];
+// Deactivated for now pending a decision on this section — flip back on when ready.
+const SHOW_TRUSTED_BY_BAND = false;
 
 const FEATURES = [
   { g: "📥", title: "Get invoices in, fast", body: "Forward the email, snap a photo, import a CSV, or type four fields. AI extracts the rest in seconds." },
@@ -57,7 +59,11 @@ export default async function Landing({
             <a href="#platform" className="hover:text-ink">Platform</a>
             <a href="#how" className="hover:text-ink">How it works</a>
             <a href="#pricing" className="hover:text-ink">Pricing</a>
-            <a href="#trust" className="hover:text-ink">Customers</a>
+            {/* Hidden for now — there's no #trust section to link to while TESTIMONIALS is
+                empty and the trusted-by band is off. Bring back once either has real content. */}
+            {TESTIMONIALS.length > 0 && (
+              <a href="#trust" className="hover:text-ink">Customers</a>
+            )}
           </nav>
           <div className="flex items-center gap-3">
             <Link href="/login" className="text-sm font-bold text-ink hover:opacity-70">
@@ -133,21 +139,23 @@ export default async function Landing({
       </section>
 
       {/* ===== scrolling band (prototype: logo marquee slot — capabilities until real logos) ===== */}
-      <div className="band py-4 overflow-hidden">
-        <div className="anim-ticker flex items-center gap-10 w-max whitespace-nowrap px-5">
-          {[...Array(6)].flatMap((_, rep) =>
-            TRUSTED_BY_PLACEHOLDERS.map((c, i) => (
-              <span
-                key={`${rep}-${i}`}
-                className="text-white/90 font-bold text-[13.5px] tracking-wide inline-flex items-center gap-2.5"
-              >
-                <span className="w-[5px] h-[5px] rounded-full bg-white/60" />
-                Trusted by {c}
-              </span>
-            ))
-          )}
+      {SHOW_TRUSTED_BY_BAND && (
+        <div className="band py-4 overflow-hidden">
+          <div className="anim-ticker flex items-center gap-10 w-max whitespace-nowrap px-5">
+            {[...Array(6)].flatMap((_, rep) =>
+              TRUSTED_BY_PLACEHOLDERS.map((c, i) => (
+                <span
+                  key={`${rep}-${i}`}
+                  className="text-white/90 font-bold text-[13.5px] tracking-wide inline-flex items-center gap-2.5"
+                >
+                  <span className="w-[5px] h-[5px] rounded-full bg-white/60" />
+                  Trusted by {c}
+                </span>
+              ))
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ===== platform ===== */}
       <section id="platform" className="max-w-[1100px] mx-auto px-6 pt-[88px] scroll-mt-16">
