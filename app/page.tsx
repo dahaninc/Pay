@@ -198,7 +198,7 @@ export default async function Landing({
             <div>
               <p className="font-disp font-extrabold text-[clamp(34px,4.5vw,44px)] tnum m-0">6.2M+</p>
               <p className="text-white/70 text-sm font-semibold mt-2">
-                Invoices paid through automated follow-up sequences like ours
+                Invoices paid through automated follow-up sequences
               </p>
             </div>
             <div>

@@ -18,7 +18,7 @@ export function LandingPricing() {
   return (
     <section id="pricing" className="pt-[88px] scroll-mt-16">
       <h2 className="font-disp font-extrabold text-[clamp(26px,3.6vw,38px)] text-ink text-center">
-        Simple, honest pricing
+        Simple, transparent pricing
       </h2>
       <p className="text-sm font-medium text-muted text-center mt-2.5">
         Start with 2 free invoices — no card. Upgrade when it&rsquo;s paying for itself.{" "}
