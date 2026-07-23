@@ -15,20 +15,10 @@ import { BRAND, CONTACT_EMAIL } from "@/lib/brand";
  */
 const TESTIMONIALS: Testimonial[] = [];
 
-// Real product capabilities for the scrolling band — the prototype uses this slot for a
-// customer-logo marquee; swap these for real customer logos once real customers consent.
-const CAPABILITIES = [
-  "Email reminders",
-  "SMS reminders",
-  "Pay-by-link",
-  "Photo → invoice in seconds",
-  "Forward an email, we read it",
-  "CSV import",
-  "Reminders auto-stop when paid",
-  "Quiet-hours compliant",
-  "Your tone, your wording",
-  "Replies land in your inbox",
-];
+// Generic, unmistakably-placeholder names — NOT real customers. This is intentional:
+// real company names/logos here would be a false "trusted by" claim (see the fabricated
+// marketing claims hard rule). Swap for real customer logos once real customers consent.
+const TRUSTED_BY_PLACEHOLDERS = ["Brand 1", "Brand 2", "Brand 3"];
 
 const FEATURES = [
   { g: "📥", title: "Get invoices in, fast", body: "Forward the email, snap a photo, import a CSV, or type four fields. AI extracts the rest in seconds." },
@@ -145,15 +135,17 @@ export default async function Landing({
       {/* ===== scrolling band (prototype: logo marquee slot — capabilities until real logos) ===== */}
       <div className="band py-4 overflow-hidden">
         <div className="anim-ticker flex items-center gap-10 w-max whitespace-nowrap px-5">
-          {[...CAPABILITIES, ...CAPABILITIES].map((c, i) => (
-            <span
-              key={i}
-              className="text-white/90 font-bold text-[13.5px] tracking-wide inline-flex items-center gap-2.5"
-            >
-              <span className="w-[5px] h-[5px] rounded-full bg-white/60" />
-              {c}
-            </span>
-          ))}
+          {[...Array(6)].flatMap((_, rep) =>
+            TRUSTED_BY_PLACEHOLDERS.map((c, i) => (
+              <span
+                key={`${rep}-${i}`}
+                className="text-white/90 font-bold text-[13.5px] tracking-wide inline-flex items-center gap-2.5"
+              >
+                <span className="w-[5px] h-[5px] rounded-full bg-white/60" />
+                Trusted by {c}
+              </span>
+            ))
+          )}
         </div>
       </div>
 
