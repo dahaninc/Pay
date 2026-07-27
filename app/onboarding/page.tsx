@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createServerSupabase, isAdminUser } from "@/lib/supabase/server";
 import { createBusiness } from "@/app/actions/business";
+import { signOut } from "@/app/actions/auth";
 import { Logo } from "@/components/Logo";
 import { TimezoneField } from "@/components/TimezoneField";
 import { CURRENCIES } from "@/lib/money";
@@ -35,13 +37,14 @@ export default async function OnboardingPage({
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-5 bg-bg py-10">
-      <div className="mb-8">
+      <Link href="/" className="mb-8 hover:opacity-80 transition-opacity">
         <Logo />
-      </div>
+      </Link>
       <div className="card w-full max-w-md p-7">
         <h1 className="font-disp font-extrabold text-xl text-ink">Set up your business</h1>
-        <p className="text-muted text-sm mt-1 mb-6">
-          Takes 30 seconds. You can change everything later.
+        <p className="text-muted text-sm mt-1">Takes 30 seconds. You can change everything later.</p>
+        <p className="text-xs font-medium text-muted mt-2 mb-6">
+          Signed in as <span className="text-ink font-semibold">{user.email}</span>
         </p>
         <form action={createBusiness} className="space-y-5">
           <input type="hidden" name="plan" value={planKey} />
@@ -114,6 +117,13 @@ export default async function OnboardingPage({
             .
           </p>
         </form>
+        <div className="border-t border-hair mt-6 pt-4 text-center">
+          <form action={signOut}>
+            <button type="submit" className="text-xs font-semibold text-muted underline hover:text-ink">
+              Wrong email? Sign out and start over
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );
