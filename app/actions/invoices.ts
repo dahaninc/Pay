@@ -13,7 +13,7 @@ import {
   payLinkFor,
   appUrl,
 } from "@/lib/scheduler";
-import { renderTemplate, emailHtml, linkifyPayLink, finalizeSms } from "@/lib/templates";
+import { renderTemplate, emailHtml, linkifyPayLink, finalizeSms, escapeHtml } from "@/lib/templates";
 import { formatMoney, formatDate } from "@/lib/money";
 import { daysOverdue, nextAllowedSendTime } from "@/lib/tz";
 import { sendEmail, sendSms, normalizePhone, cleanPhoneInput, type SendResult } from "@/lib/senders";
@@ -411,7 +411,11 @@ export async function remindNow(invoiceId: string) {
       sendEmail({
         to: toAddresses,
         subject: emailSubject,
-        html: linkifyPayLink(emailHtml(emailBody, ctx.business_name, business.phone), ctx.pay_link),
+        // escaped here only — smsBodyWithOptOut is a separate plain-text variable, untouched
+        html: linkifyPayLink(
+          emailHtml(escapeHtml(emailBody), escapeHtml(ctx.business_name), business.phone),
+          ctx.pay_link
+        ),
         replyTo: replyToFor(invoice.id),
         fromName: ctx.business_name,
         bcc: business.reply_to_email,

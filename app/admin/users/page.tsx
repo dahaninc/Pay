@@ -10,6 +10,7 @@ import {
 } from "@/lib/adminData";
 import { totalPaidCentsForCustomer, refundedCentsForCustomer } from "@/lib/adminStripe";
 import { formatMoney, formatDate } from "@/lib/money";
+import { requireAdmin } from "@/lib/admin";
 
 const PAGE_SIZE = 25;
 
@@ -25,6 +26,7 @@ export default async function AdminUsersPage({
 }: {
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
+  await requireAdmin();
   const sp = await searchParams;
   const page = Math.max(1, parseInt(sp.page ?? "1", 10) || 1);
 

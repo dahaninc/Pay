@@ -4,8 +4,10 @@ import { monthlyRevenueLastNMonths } from "@/lib/adminStripe";
 import { formatMoney } from "@/lib/money";
 import { StatCard } from "@/components/admin/StatCard";
 import { CostForm } from "@/components/admin/CostForm";
+import { requireAdmin } from "@/lib/admin";
 
 export default async function AdminRevenuePage() {
+  await requireAdmin();
   const admin = createAdminSupabase();
   const [businesses, subs, monthly] = await Promise.all([
     getAdminBusinesses(),

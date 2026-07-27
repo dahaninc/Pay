@@ -3,6 +3,22 @@ import { emailBrandHeaderHtml, BRAND } from "@/lib/brand";
 import { isDomesticSms } from "@/lib/senders";
 
 /**
+ * Escapes free-text user-controlled values (customer name, business name, phone) before they're
+ * interpolated into raw HTML email strings — these aren't run through React/JSX (which
+ * auto-escapes), so without this a customer name or business name containing HTML/script tags
+ * renders live in real emails sent to the business owner or their customers. Never apply this to
+ * app-generated values like pay_link — linkifyPayLink() matches that URL verbatim afterward.
+ */
+export function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/**
  * Brand-level SMS finish: every outbound SMS ends with the on-behalf-of signature and the
  * legally-required opt-out, each on its own line. Applied at send time (scheduler + manual
  * "Remind now"), NOT stored in templates — so user-edited template copy can never lose the
@@ -119,13 +135,14 @@ export function emailHtml(body: string, businessName: string, phone?: string | n
     .split("\n\n")
     .map((p) => `<p style="margin:0 0 16px 0;">${p.replace(/\n/g, "<br/>")}</p>`)
     .join("");
+  const safePhone = phone ? escapeHtml(phone) : phone;
   const contactLine = phone
     ? `<tr>
             <td style="padding:0 0 18px 0;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f7ead0;border-radius:10px;">
                 <tr>
                   <td style="padding:12px 16px;font-size:13px;color:#3c2a0c;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
-                    Questions about this invoice? Call or text ${businessName} at <strong>${phone}</strong> — or just reply to this email.
+                    Questions about this invoice? Call or text ${businessName} at <strong>${safePhone}</strong> — or just reply to this email.
                   </td>
                 </tr>
               </table>

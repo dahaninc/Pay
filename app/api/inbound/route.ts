@@ -8,6 +8,7 @@ import { formatMoney } from "@/lib/money";
 import { endTrialIfFairUseExceeded } from "@/lib/trial";
 import { invoiceLimitFor } from "@/lib/plans";
 import { emailBrandHeaderHtml } from "@/lib/brand";
+import { escapeHtml } from "@/lib/templates";
 import type { Business } from "@/lib/types";
 
 /**
@@ -31,7 +32,10 @@ import type { Business } from "@/lib/types";
 /** Fetches the actual body content for a received email — see comment above. */
 async function fetchReceivedEmailBody(emailId: string): Promise<{ text: string; html: string }> {
   const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey || !emailId) return { text: "", html: "" };
+  // emailId comes straight off the webhook payload — validate it's actually a UUID before
+  // splicing it into the Resend API URL (path/query injection guard; signature verification
+  // is this route's primary defense, but this holds even if that's ever misconfigured off).
+  if (!apiKey || !emailId || !/^[0-9a-f-]{36}$/i.test(emailId)) return { text: "", html: "" };
   try {
     const res = await fetch(`https://api.resend.com/emails/receiving/${emailId}`, {
       headers: { Authorization: `Bearer ${apiKey}` },
@@ -206,7 +210,7 @@ export async function POST(request: NextRequest) {
   <div style="background-color:#fffdf8;border:1px solid rgba(33,27,19,0.10);border-radius:16px;padding:28px;">
     <h2 style="margin:0 0 12px;font-size:19px;">We read your invoice 📄</h2>
     <table style="font-size:15px;border-collapse:collapse;">
-      <tr><td style="padding:4px 16px 4px 0;color:#7c7061;">Customer</td><td style="font-weight:600;">${extracted.customer_name}</td></tr>
+      <tr><td style="padding:4px 16px 4px 0;color:#7c7061;">Customer</td><td style="font-weight:600;">${escapeHtml(extracted.customer_name)}</td></tr>
       <tr><td style="padding:4px 16px 4px 0;color:#7c7061;">Amount</td><td style="font-weight:600;">${formatMoney(amountCents, invoice.currency)}</td></tr>
       <tr><td style="padding:4px 16px 4px 0;color:#7c7061;">Invoice #</td><td style="font-weight:600;">${invoice.number}</td></tr>
       <tr><td style="padding:4px 16px 4px 0;color:#7c7061;">Due</td><td style="font-weight:600;">${dueAt}</td></tr>
@@ -275,8 +279,8 @@ async function handleReply(
   <div style="margin-bottom:16px;">${emailBrandHeaderHtml(24)}</div>
   <div style="background-color:#fffdf8;border:1px solid rgba(33,27,19,0.10);border-radius:16px;padding:28px;">
     <h2 style="margin:0 0 12px;font-size:19px;">💬 New reply on invoice ${invoice.number}</h2>
-    <p style="margin:0 0 14px;color:#7c7061;font-size:13px;">From ${customer?.name ?? fromAddr}</p>
-    <div style="background-color:#f7ead0;border-radius:10px;padding:16px;font-size:14px;line-height:1.6;color:#3c2a0c;white-space:pre-wrap;">${text}</div>
+    <p style="margin:0 0 14px;color:#7c7061;font-size:13px;">From ${escapeHtml(customer?.name ?? fromAddr)}</p>
+    <div style="background-color:#f7ead0;border-radius:10px;padding:16px;font-size:14px;line-height:1.6;color:#3c2a0c;white-space:pre-wrap;">${escapeHtml(text)}</div>
     <p style="margin:20px 0 0;"><a href="${viewUrl}" style="display:inline-block;background-color:#e7a33c;color:#3c2a0c;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:700;">View on PayPigeon</a></p>
   </div>
 </div></body></html>`,

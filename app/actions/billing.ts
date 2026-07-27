@@ -35,33 +35,39 @@ export async function startSubscription(formData: FormData) {
     return { error: `No Stripe price configured for the ${plan} plan (${interval}) — set ${envName}.` };
   }
 
-  let customerId = business.stripe_customer_id;
-  if (!customerId) {
-    const customer = await stripe.customers.create({
-      email: user.email ?? undefined,
-      name: business.name,
-      metadata: { business_id: business.id },
-    });
-    customerId = customer.id;
-    await supabase
-      .from("businesses")
-      .update({ stripe_customer_id: customerId })
-      .eq("id", business.id);
-  }
+  try {
+    let customerId = business.stripe_customer_id;
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        email: user.email ?? undefined,
+        name: business.name,
+        metadata: { business_id: business.id },
+      });
+      customerId = customer.id;
+      await supabase
+        .from("businesses")
+        .update({ stripe_customer_id: customerId })
+        .eq("id", business.id);
+    }
 
-  const session = await stripe.checkout.sessions.create({
-    mode: "subscription",
-    customer: customerId,
-    line_items: [{ price, quantity: 1 }],
-    metadata: { business_id: business.id, plan, interval },
-    subscription_data: {
+    const session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      customer: customerId,
+      line_items: [{ price, quantity: 1 }],
       metadata: { business_id: business.id, plan, interval },
-      ...(trialDays ? { trial_period_days: trialDays } : {}),
-    },
-    success_url: `${appUrl()}${successPath}`,
-    cancel_url: `${appUrl()}${cancelPath}`,
-  });
-  redirect(session.url!);
+      subscription_data: {
+        metadata: { business_id: business.id, plan, interval },
+        ...(trialDays ? { trial_period_days: trialDays } : {}),
+      },
+      success_url: `${appUrl()}${successPath}`,
+      cancel_url: `${appUrl()}${cancelPath}`,
+    });
+    redirect(session.url!);
+  } catch (e) {
+    // NEXT_REDIRECT throws by design — rethrow so the redirect above actually happens
+    if (e instanceof Error && e.message === "NEXT_REDIRECT") throw e;
+    return { error: `Couldn't start checkout: ${e instanceof Error ? e.message : "unknown error"}` };
+  }
 }
 
 /** Stripe-hosted self-serve billing management (update card, view invoices, change plan). */
@@ -71,11 +77,16 @@ export async function openBillingPortal() {
   if (!stripe || !business.stripe_customer_id) {
     return { error: "No billing account yet." };
   }
-  const session = await stripe.billingPortal.sessions.create({
-    customer: business.stripe_customer_id,
-    return_url: `${appUrl()}/settings`,
-  });
-  redirect(session.url);
+  try {
+    const session = await stripe.billingPortal.sessions.create({
+      customer: business.stripe_customer_id,
+      return_url: `${appUrl()}/settings`,
+    });
+    redirect(session.url);
+  } catch (e) {
+    if (e instanceof Error && e.message === "NEXT_REDIRECT") throw e;
+    return { error: `Couldn't open billing portal: ${e instanceof Error ? e.message : "unknown error"}` };
+  }
 }
 
 /**
@@ -89,15 +100,20 @@ export async function openCancelFlow() {
   if (!stripe || !business.stripe_customer_id || !business.stripe_subscription_id) {
     return { error: "No active subscription to cancel." };
   }
-  const session = await stripe.billingPortal.sessions.create({
-    customer: business.stripe_customer_id,
-    return_url: `${appUrl()}/settings`,
-    flow_data: {
-      type: "subscription_cancel",
-      subscription_cancel: { subscription: business.stripe_subscription_id },
-    },
-  });
-  redirect(session.url);
+  try {
+    const session = await stripe.billingPortal.sessions.create({
+      customer: business.stripe_customer_id,
+      return_url: `${appUrl()}/settings`,
+      flow_data: {
+        type: "subscription_cancel",
+        subscription_cancel: { subscription: business.stripe_subscription_id },
+      },
+    });
+    redirect(session.url);
+  } catch (e) {
+    if (e instanceof Error && e.message === "NEXT_REDIRECT") throw e;
+    return { error: `Couldn't open the cancel flow: ${e instanceof Error ? e.message : "unknown error"}` };
+  }
 }
 
 /** Stripe Connect (Standard) onboarding so customers can pay the business directly. */

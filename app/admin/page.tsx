@@ -1,7 +1,9 @@
 import { getAdminBusinesses, sourceFor } from "@/lib/adminData";
 import { StatCard } from "@/components/admin/StatCard";
+import { requireAdmin } from "@/lib/admin";
 
 export default async function AdminOverviewPage() {
+  await requireAdmin();
   const businesses = await getAdminBusinesses();
   const now = Date.now();
   const day = 86400000;

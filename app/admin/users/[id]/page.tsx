@@ -11,6 +11,7 @@ import {
   LifetimeTierControl,
 } from "@/components/admin/SubscriptionControls";
 import type { Business } from "@/lib/types";
+import { requireAdmin } from "@/lib/admin";
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
@@ -22,6 +23,7 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 export default async function AdminBusinessPage({ params }: { params: Promise<{ id: string }> }) {
+  await requireAdmin();
   const { id } = await params;
   const db = createAdminSupabase();
   if (!db) notFound();

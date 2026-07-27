@@ -9,7 +9,7 @@ import type {
 } from "@/lib/types";
 import { formatMoney, formatDate } from "@/lib/money";
 import { nextAllowedSendTime, zonedTimeToUtc, addDays, daysOverdue } from "@/lib/tz";
-import { renderTemplate, emailHtml, linkifyPayLink, finalizeSms, type MergeContext } from "@/lib/templates";
+import { renderTemplate, emailHtml, linkifyPayLink, finalizeSms, escapeHtml, type MergeContext } from "@/lib/templates";
 import { sendEmail, sendSms } from "@/lib/senders";
 import { canSend } from "@/lib/plans";
 import { replyToFor } from "@/lib/brand";
@@ -62,6 +62,10 @@ export function armingPlan(
   };
 }
 
+// first_name/business_name are free text (customer/business-supplied, including via CSV import
+// or AI extraction) and this SAME ctx feeds both SMS and email bodies — do NOT escape here.
+// SMS is plain text (escaping would literally send "O&#39;Brien" over SMS); only the email-HTML
+// path needs escaping, applied separately at that specific construction point below.
 function mergeContext(business: Business, customer: Customer, invoice: Invoice): MergeContext {
   return {
     first_name: customer.name.split(" ")[0],
@@ -242,7 +246,13 @@ async function processOne(
       : await sendEmail({
           to: emailRecipients,
           subject: subject || `Invoice ${inv.number} from ${ctx.business_name}`,
-          html: linkifyPayLink(emailHtml(body, ctx.business_name, biz.phone), ctx.pay_link),
+          // escaped here (not in ctx/mergeContext, which also feeds SMS as plain text) —
+          // pay_link is never escaped (no HTML-special chars in its URL shape either way),
+          // so linkifyPayLink's verbatim match against ctx.pay_link still works.
+          html: linkifyPayLink(
+            emailHtml(escapeHtml(body), escapeHtml(ctx.business_name), biz.phone),
+            ctx.pay_link
+          ),
           replyTo: replyToFor(inv.id),
           fromName: ctx.business_name,
           bcc: biz.reply_to_email,

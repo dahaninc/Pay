@@ -1,7 +1,9 @@
 import { getAdminBusinesses, subscriptionsByBusinessId } from "@/lib/adminData";
 import { formatMoney, formatDate } from "@/lib/money";
+import { requireAdmin } from "@/lib/admin";
 
 export default async function AdminPaymentsPage() {
+  await requireAdmin();
   const [businesses, subs] = await Promise.all([getAdminBusinesses(), subscriptionsByBusinessId()]);
   const byId = new Map(businesses.map((b) => [b.id, b]));
 

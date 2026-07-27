@@ -144,13 +144,17 @@ export async function updateBusiness(formData: FormData) {
   // compliance floor/ceiling enforced in DB too: 7am-10pm — the business picks the window
   // WITHIN that range (see components/QuietHoursEditor.tsx), never outside it. 8am-9pm is the
   // suggested standard (new signups default there) but every business can move within 7-22.
-  if (quietStart) updates.quiet_start = Math.max(7, parseInt(String(quietStart), 10) || 8);
-  if (quietEnd) updates.quiet_end = Math.min(22, parseInt(String(quietEnd), 10) || 21);
-  if (
-    typeof updates.quiet_start === "number" &&
-    typeof updates.quiet_end === "number" &&
-    updates.quiet_start >= updates.quiet_end
-  ) {
+  // Both bounds clamped on BOTH fields (not just one side each) — a one-sided clamp here let a
+  // submitted quiet_start/quiet_end escape the 7-22 floor/ceiling entirely (real bug, found by
+  // security audit): e.g. quiet_start=999 clamped to max(7,999)=999 with no ceiling applied.
+  if (quietStart) updates.quiet_start = Math.min(22, Math.max(7, parseInt(String(quietStart), 10) || 8));
+  if (quietEnd) updates.quiet_end = Math.max(7, Math.min(22, parseInt(String(quietEnd), 10) || 21));
+  // Compare against the EFFECTIVE start/end (falling back to the existing saved value when only
+  // one side is submitted) — the previous check only ran when both were freshly submitted in the
+  // same request, so updating just quiet_start could still cross the business's existing quiet_end.
+  const effectiveQuietStart = (updates.quiet_start as number | undefined) ?? business.quiet_start;
+  const effectiveQuietEnd = (updates.quiet_end as number | undefined) ?? business.quiet_end;
+  if (effectiveQuietStart >= effectiveQuietEnd) {
     throw new Error("Quiet hours start must be earlier than the end time");
   }
 
@@ -158,10 +162,8 @@ export async function updateBusiness(formData: FormData) {
   // stepSendTime) — clamped inside whatever quiet-hours window ends up in effect
   const sendHour = formData.get("preferred_send_hour");
   if (sendHour) {
-    const effectiveStart = (updates.quiet_start as number | undefined) ?? business.quiet_start;
-    const effectiveEnd = (updates.quiet_end as number | undefined) ?? business.quiet_end;
-    const parsed = parseInt(String(sendHour), 10) || effectiveStart;
-    updates.preferred_send_hour = Math.min(Math.max(parsed, effectiveStart), effectiveEnd - 1);
+    const parsed = parseInt(String(sendHour), 10) || effectiveQuietStart;
+    updates.preferred_send_hour = Math.min(Math.max(parsed, effectiveQuietStart), effectiveQuietEnd - 1);
   }
 
   const allowSunday = formData.get("allow_sunday");
