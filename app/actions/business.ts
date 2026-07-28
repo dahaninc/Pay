@@ -2,13 +2,12 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 import { createServerSupabase, requireBusiness } from "@/lib/supabase/server";
 import { TIMEZONE_FOR_COUNTRY, isSupportedCurrency } from "@/lib/money";
 import { defaultSteps, type PresetTone } from "@/lib/templates";
 import { PLANS } from "@/lib/plans";
 import { cleanPhoneInput } from "@/lib/senders";
-import { sendMetaConversionEvent } from "@/lib/metaConversions";
 import type { Tone } from "@/lib/types";
 
 export async function createBusiness(formData: FormData) {
@@ -81,29 +80,6 @@ export async function createBusiness(formData: FormData) {
     .single();
   if (error) throw new Error(error.message);
 
-  // Meta Conversions API: fire-and-forget, must never block or fail signup — this is a
-  // confirmed real signup (DB row just inserted), not optimistic client state.
-  const metaEventId = crypto.randomUUID();
-  try {
-    const h = await headers();
-    const c = await cookies();
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://paypigeon.io";
-    await sendMetaConversionEvent({
-      eventName: "CompleteRegistration",
-      eventId: metaEventId,
-      eventSourceUrl: `${appUrl}/onboarding`,
-      userData: {
-        email: user.email,
-        fbp: c.get("_fbp")?.value,
-        fbc: c.get("_fbc")?.value,
-        clientIp: h.get("x-forwarded-for")?.split(",")[0]?.trim(),
-        clientUserAgent: h.get("user-agent"),
-      },
-    });
-  } catch {
-    // never let a Meta API hiccup break signup
-  }
-
   await supabase.from("business_members").insert({
     business_id: business.id,
     user_id: user.id,
@@ -122,7 +98,7 @@ export async function createBusiness(formData: FormData) {
   // see lib/trial.ts isFreeTierInvoiceBlocked and the arm gates in app/actions/invoices.ts). A
   // card is only collected when they create a 3rd invoice, via the upgrade wall on that invoice's
   // page (components/InvoiceActions.tsx → startSubscription in app/actions/billing.ts).
-  redirect(`/invoices?welcome=1&meta_ev=CompleteRegistration&meta_eid=${metaEventId}`);
+  redirect("/invoices?welcome=1");
 }
 
 export async function updateBusiness(formData: FormData) {

@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createAdminSupabase } from "@/lib/supabase/server";
 import { stopSequence } from "@/lib/scheduler";
-import { sendMetaConversionEvent } from "@/lib/metaConversions";
-import { PLANS } from "@/lib/plans";
 
 export async function POST(request: NextRequest) {
   const key = process.env.STRIPE_SECRET_KEY;
@@ -101,19 +99,6 @@ export async function POST(request: NextRequest) {
           (sub as unknown as { current_period_start?: number }).current_period_start ??
           null;
 
-        // Fetch the plan BEFORE this update — need it to tell a genuine new-paying-customer
-        // conversion (fire Meta's "Subscribe" event once) apart from renewals/re-updates on
-        // an already-paying business (this handler re-fires on every renewal; firing again
-        // there would double-count the same customer for Meta's ad optimization).
-        const { data: prevBusiness } = await db
-          .from("businesses")
-          .select("plan, reply_to_email")
-          .eq("id", businessId)
-          .single();
-        const wasAlreadyPaying = prevBusiness
-          ? (Object.keys(PLANS) as string[]).includes(prevBusiness.plan)
-          : false;
-
         await db
           .from("businesses")
           .update({
@@ -124,19 +109,6 @@ export async function POST(request: NextRequest) {
             stripe_current_period_start: periodStart ? new Date(periodStart * 1000).toISOString() : null,
           })
           .eq("id", businessId);
-
-        if (active && !wasAlreadyPaying && prevBusiness?.reply_to_email) {
-          const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://paypigeon.io";
-          await sendMetaConversionEvent({
-            eventName: "Subscribe",
-            eventId: crypto.randomUUID(),
-            eventSourceUrl: `${appUrl}/settings`,
-            userData: { email: prevBusiness.reply_to_email },
-            customData: { value: PLANS[plan as keyof typeof PLANS]?.price ?? 0, currency: "USD" },
-          }).catch(() => {
-            // never let a Meta API hiccup break webhook processing
-          });
-        }
       }
       break;
     }

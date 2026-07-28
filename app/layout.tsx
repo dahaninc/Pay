@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Hanken_Grotesk } from "next/font/google";
 import { cookies } from "next/headers";
 import { BRAND } from "@/lib/brand";
-import { MetaPixel } from "@/components/MetaPixel";
 import "./globals.css";
 
 const bricolage = Bricolage_Grotesque({
@@ -32,12 +31,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const theme = (await cookies()).get("theme")?.value === "dark" ? "dark" : "light";
   return (
     <html lang="en" data-theme={theme}>
-      <body className={`${bricolage.variable} ${hanken.variable} antialiased`}>
-        {process.env.NEXT_PUBLIC_META_PIXEL_ID && (
-          <MetaPixel pixelId={process.env.NEXT_PUBLIC_META_PIXEL_ID} />
-        )}
-        {children}
-      </body>
+      <body className={`${bricolage.variable} ${hanken.variable} antialiased`}>{children}</body>
     </html>
   );
 }
